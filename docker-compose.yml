@@ -1,0 +1,16 @@
+services:
+  app:
+    container_name: fakedash-dev
+    build: .
+    ports:
+      - "${VITE_WEB_PORT}:${VITE_WEB_PORT}"
+      - "${VITE_API_PORT}:${VITE_API_PORT}"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - VITE_WEB_PORT=${VITE_WEB_PORT}
+      - VITE_API_PORT=${VITE_API_PORT}
+    # This ensures Vite listens on all network interfaces inside the container
+    command: npm run dev+api -- --host 0.0.0.0

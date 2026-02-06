@@ -2,85 +2,55 @@ Progetto al momento sotto attivo sviluppo!
 
 # FakeDash - Dashboard di Gestione Contenuti
 
-## 📋 Panoramica del Progetto
+## 📋 Panoramica
 
-**FakeDash** è un'applicazione dashboard moderna e completa per la gestione di utenti e post, sviluppata come test di recruiting frontend. L'applicazione dimostra competenze avanzate in React, TypeScript, e gestione dello stato, implementando funzionalità CRUD complete con un backend simulato.
-
-<div align="center">
+**FakeDash** è un'applicazione dashboard moderna per la gestione di utenti e post, sviluppata come test di recruiting frontend. Dimostra competenze avanzate in React, TypeScript e gestione dello stato con funzionalità CRUD complete e backend simulato.
 
 ## 🚀 Stack Tecnologico
 
 ![Commit Activity](https://img.shields.io/github/commit-activity/w/elpideus/fakedash?color=0E8A16&logo=github&logoColor=white&label=Commits&style=for-the-badge)
 [![License](https://img.shields.io/github/license/elpideus/fakedash?color=4A148C&logo=opensourceinitiative&logoColor=white&label=License&style=for-the-badge)](https://github.com/elpideus/fakedash/blob/main/LICENSE)
 
+### Frontend
 ![React](https://img.shields.io/github/package-json/dependency-version/elpideus/fakedash/react?color=61DAFB&label=React&logo=react&logoColor=white&style=for-the-badge)
 ![TypeScript](https://img.shields.io/github/package-json/dependency-version/elpideus/fakedash/dev/typescript?color=3178C6&label=TypeScript&logo=typescript&logoColor=white&style=for-the-badge)
 ![Vite](https://img.shields.io/github/package-json/dependency-version/elpideus/fakedash/dev/vite?color=646CFF&label=Vite&logo=vite&logoColor=white&style=for-the-badge)
-
-![MUI](https://img.shields.io/github/package-json/dependency-version/elpideus/fakedash/@mui/material?color=007FFF&label=MUI&logo=mui&logoColor=white&style=for-the-badge)
-![Material React Table](https://img.shields.io/github/package-json/dependency-version/elpideus/fakedash/material-react-table?color=00A3E0&label=Material%20React%20Table&style=for-the-badge)
-![TanStack Query](https://img.shields.io/github/package-json/dependency-version/elpideus/fakedash/@tanstack/react-query?color=FF4154&label=TanStack%20Query&logo=react-query&logoColor=white&style=for-the-badge)
 ![React Router](https://img.shields.io/github/package-json/dependency-version/elpideus/fakedash/react-router-dom?color=CA4245&label=React%20Router&logo=react-router&logoColor=white&style=for-the-badge)
 
-![Axios](https://img.shields.io/github/package-json/dependency-version/elpideus/fakedash/axios?color=5A29E4&label=Axios&logo=axios&logoColor=white&style=for-the-badge)
+### UI & Styling
+![MUI](https://img.shields.io/github/package-json/dependency-version/elpideus/fakedash/@mui/material?color=007FFF&label=MUI&logo=mui&logoColor=white&style=for-the-badge)
+![Material React Table](https://img.shields.io/github/package-json/dependency-version/elpideus/fakedash/material-react-table?color=00A3E0&label=Material%20React%20Table&style=for-the-badge)
 ![Tailwind CSS](https://img.shields.io/github/package-json/dependency-version/elpideus/fakedash/tailwindcss?color=38B2AC&label=Tailwind%20CSS&logo=tailwindcss&logoColor=white&style=for-the-badge)
 
-• **React 19** + **TypeScript** - UI componentistica tipizzata\
-• **Vite** + **Rolldown** - Build tool ottimizzato\
-• **Material-UI (MUI)** - Componenti UI design system\
-• **Material React Table** - Tabelle avanzate con TanStack Table\
-• **TanStack Query** - Gestione dati asincroni e caching\
-• **React Router v7** - Navigazione client-side\
-• **Axios** - Client HTTP\
-• **Tailwind CSS** - Styling utility-first\
-• **JSON Server** - Backend REST simulato
-</div>
+### Data Management
+![TanStack Query](https://img.shields.io/github/package-json/dependency-version/elpideus/fakedash/@tanstack/react-query?color=FF4154&label=TanStack%20Query&logo=react-query&logoColor=white&style=for-the-badge)
+![Axios](https://img.shields.io/github/package-json/dependency-version/elpideus/fakedash/axios?color=5A29E4&label=Axios&logo=axios&logoColor=white&style=for-the-badge)
 
-## 🎯 Funzionalità Implementate
+### Backend Simulato
+- **JSON Server** - REST API mock
+
+## 🎯 Funzionalità
 
 ### ✅ Completate
+- **🔐 Autenticazione**: Login con validazione e UI responsive
+- **📊 Dashboard**: Layout sidebar + contenuto principale con navigazione
+- **📝 Gestione Post**: 
+  - Tabella con paginazione server-side, filtri e ordinamento
+  - CRUD completo (crea, leggi, modifica, elimina)
+  - Azioni batch (eliminazione multipla)
+  - Cache ottimizzata con TanStack Query
+- **👥 Gestione Utenti**: 
+  - Tabella con paginazione e selezione multipla
+  - Operazioni CRUD complete
+- **🎨 Componenti Custom**: 
+  - `ContentTable` (tabella riutilizzabile)
+  - Sidebar animata
+  - Sistema di bottoni temati
+  - Input field con styling consistente
 
-#### 🔐 Sistema di Autenticazione
-- Pagina di login con validazione
-- UI responsive con feedback visivo
-- Protezione delle rotte (in sviluppo)
+## 🏗️ Architettura
 
-#### 📊 Dashboard Principale
-- Layout sidebar + contenuto principale
-- Navigazione fluida tra sezioni
-- Stato UI persistente
-
-#### 📝 Gestione Post
-- **Lista Post**: Tabella MRT con:
-    - Paginazione server-side
-    - Selezione multipla
-    - Filtri e ordinamento
-    - Pannello dettaglio espandibile
-- **Dettaglio Post**:
-    - Visualizzazione completa
-    - Modalità modifica inline
-    - Eliminazione con conferma
-    - Cache ottimizzata con TanStack Query
-- **Azioni Batch**:
-    - Eliminazione multipla
-    - Feedback tramite snackbar
-
-#### 👥 Gestione Utenti
-- **Lista Utenti**: Tabella MRT con:
-    - Paginazione efficiente
-    - Selezione multipla
-    - Azioni contestuali
-- **Gestione CRUD** completa
-- UI coerente con sezione post
-
-#### 🎨 Componenti Custom
-- **ContentTable**: Componente tabella riutilizzabile
-- **Sidebar**: Navigazione animata
-- **Sistema di Bottoni**: Primary/Secondary themes
-- **Input Field**: Text e Password con styling consistente
-
-## 🏗️ Architettura del Progetto
-
+### Struttura del Progetto
 ```
 src/
 ├── components/           # Componenti riutilizzabili
@@ -95,59 +65,112 @@ src/
 └── App.tsx              # Routing principale
 ```
 
-### Design Pattern Utilizzati
-
-1. **Container/Presentational**: Separazione logica e presentazione
-2. **Custom Hooks Pattern**: Astrazione logica complessa
-3. **Compound Components**: Tabella con componenti compositi
-4. **Optimistic Updates**: UI reattiva con aggiornamenti ottimistici
+### Design Pattern
+1. **Container/Presentational** - Separazione logica e presentazione
+2. **Custom Hooks Pattern** - Astrazione logica complessa
+3. **Compound Components** - Componenti compositi
+4. **Optimistic Updates** - UI reattiva con aggiornamenti ottimistici
 
 ## 🔧 Installazione e Avvio
 
-### Prerequisiti
-- Node.js 22.9.0+ e npm/yarn
-- Git
+### Metodo 1: Docker (Raccomandato)
 
-### Passi di Installazione
+#### Prerequisiti
+- [Docker](https://docs.docker.com/get-docker/) e [Docker Compose](https://docs.docker.com/compose/install/)
 
+#### Passi
+1. **Clona il repository**
+   ```bash
+   git clone https://github.com/elpideus/fakedash.git
+   cd fakedash
+   ```
+
+2. **Avvia con Docker Compose**
+   ```bash
+   docker-compose up --build
+   ```
+
+3. **Accedi all'applicazione dal browser**: http://localhost:5173
+
+#### Comandi Docker utili
 ```bash
-# 1. Clona il repository
-git clone <repository-url>
-cd fakedash
+# Avvio in background
+docker-compose up -d
 
-# 2. Installa dipendenze
-npm install
+# Ferma i container
+docker-compose down
 
-# 3. Avvia il progetto
-npm run dev+api
+# Visualizza log
+docker-compose logs -f
 
-# Oppure puoi avviare manualmente back-end poi front-end (sconsigliato)
-# In un terminale:
-npx json-server --watch db.json --port 3001
-# In un altro terminale
-npm run dev
+# Ricostruisce le immagini
+docker-compose up --build
 ```
 
-L'applicazione sarà disponibile su `http://localhost:5173`
+### Metodo 2: Sviluppo Locale
 
-## 🧪 Testing dell'Applicazione
+#### Prerequisiti
+- Node.js 22.9.0+ e npm
+
+#### Passi
+1. **Clona il repository**
+   ```bash
+   git clone https://github.com/elpideus/fakedash.git
+   cd fakedash
+   ```
+
+2. **Installa le dipendenze**
+   ```bash
+   npm install
+   ```
+
+3. **Configura le variabili d'ambiente**
+   ```bash
+   # Unix (Linux/MacOS)
+   cp .env.example .env
+   
+   # Windows (PowerShell)
+   Copy-Item .env.example -Destination .env
+   
+   # Windows (CMD)
+   copy .env.example .env
+   ```
+
+4. **Avvia il progetto**
+   ```bash
+   # Avvia sia frontend che backend
+   npm run dev+api
+   ```
+
+5. **Oppure avvia separatamente**
+   ```bash
+   # Terminale 1: Backend
+   json-server --watch db.json --port 3001
+   
+   # Terminale 2: Frontend
+   npm run dev
+   ```
+
+## 🧪 Comandi Utili
 
 ```bash
-# Avvia in modalità sviluppo
+# Modalità sviluppo
 npm run dev
 
 # Build produzione
 npm run build
 
+# Preview build
+npm run preview
+
 # Linting
 npm run lint
 
-# Preview build
-npm run preview
+# Test (non ancora configurato)
+npm test
 ```
 
-
-## 📁 Struttura del Database
+## 📁 Struttura Database
 
 ```json
 {
@@ -175,13 +198,13 @@ npm run preview
 ### Backend (JSON Server)
 ```
 GET    /users           # Lista utenti
-GET    /users?id=1      # Singolo utente
+GET    /users/:id       # Singolo utente
 POST   /users           # Crea utente
 PUT    /users/:id       # Modifica utente
 DELETE /users/:id       # Elimina utente
 
 GET    /posts           # Lista post
-GET    /posts?id=1      # Singolo post
+GET    /posts/:id       # Singolo post
 GET    /posts?userId=1  # Post per utente
 POST   /posts           # Crea post
 PUT    /posts/:id       # Modifica post
@@ -197,17 +220,15 @@ DELETE /posts/:id       # Elimina post
 /*                   # Catch-all (dashboard)
 ```
 
-## 🎯 Scelte Progettuali Spiegate
+## 🎯 Scelte Progettuali
 
 ### 1. **TanStack Query**
-Ho scelto TanStack Query per:
-- Gestione automatica di caching, background updates, e errori
+- Gestione automatica di caching, background updates e errori
 - Ottimistic updates integrati
 - DevTools eccellenti per debugging
-- Minimizzazione di richieste duplicate
+- Minimizzazione richieste duplicate
 
-### 2. **Material React Table vs Tabella Custom**
-MRT offre:
+### 2. **Material React Table**
 - Performance ottimizzata con virtualizzazione
 - API consistente per features complesse
 - Accessibilità integrata
@@ -216,7 +237,6 @@ MRT offre:
 ### 3. **TypeScript Strict Mode**
 - Type safety completo
 - Migliore developer experience
-- Documentazione automatica delle librerie
 - Rilevamento errori a compile-time
 
 ### 4. **Separazione Componenti**
@@ -224,82 +244,111 @@ MRT offre:
 - Pagine: Solo layout e orchestrazione
 - Hooks custom: Logica business riutilizzabile
 
-## 📋 TODO List & Miglioramenti Futuri
+## 📋 Roadmap
 
 ### 🚨 Priorità Alta
-- [ ] **Implementare autenticazione completa**
+- [x] **Autenticazione (fake)**
+    - [x] Pagina di login implementata (`Login.tsx`)
+    - [ ] UI login con validazione base
+    - [ ] Gestione stato utente loggato
     - [ ] Protezione rotte con React Router
-    - [ ] Context/Store per stato autenticazione
-    - [ ] Persistenza sessione (localStorage)
-    - [ ] Redirect automatici per utenti non autenticati
 
-- [ ] **Form Creazione/Modifica**
-    - [ ] Drawer/Modal per creazione post/utenti
-    - [ ] Validazione con React Hook Form + Zod
-    - [ ] Error handling migliorato
+- [x] **Post - Funzionalità Base**
+    - [x] Lista dei post con tabella (`PostListContent.tsx`)
+    - [x] Visualizzazione Material React Table con paginazione e filtri
+    - [x] Navigazione al dettaglio singolo post (`Post.tsx`)
+    - [ ] Modifica ed eliminazione di un post
+    - [ ] Creazione nuovo post tramite Drawer
+    - [ ] Preservazione stato tabella al ritorno dal dettaglio
 
-- [ ] **Pagine Dettaglio Utente**
-    - [ ] Visualizzazione profilo utente
-    - [ ] Lista post dell'utente
-    - [ ] Modifica informazioni utente
+- [ ] **Utenti - Funzionalità Base**
+    - [x] Lista utenti con tabella (`UserListContent.tsx`)
+    - [x] Visualizzazione Material React Table con paginazione e filtri
+    - [ ] Navigazione al dettaglio singolo utente
+    - [ ] Creazione nuovo utente tramite Drawer
+    - [ ] Modifica ed eliminazione utente
+    - [ ] Mostrare i posts dell'utente nel dettaglio
+    - [ ] Preservazione stato tabella al ritorno dal dettaglio
 
 ### ⚡ Priorità Media
-- [ ] **Performance Ottimizzazioni**
+- [x] **Performance Ottimizzazioni**
+    - [x] TanStack Query per caching e stato asincrono
     - [ ] Code splitting con React.lazy
     - [ ] Memoizzazione componenti pesanti
-    - [ ] Ottimizzazione re-render
 
 - [ ] **Testing Suite**
     - [ ] Unit test per componenti critici
     - [ ] Integration test per flussi utente
-    - [ ] E2E test con Cypress o simili
 
-- [ ] **Error Boundary**
-    - [ ] Gestione errori a livello applicazione (inclusi i `@ts-expect-error`)
-    - [ ] Fallback UI
-    - [ ] Error reporting
+- [x] **Error Boundary / Gestione Errori**
+    - [x] Gestione errori API nei componenti Post e User
+    - [x] Loading states e fallback UI
+    - [ ] Error Boundary a livello applicazione
 
 ### 🎨 Priorità Bassa
-- [ ] **UI/UX Miglioramenti**
+- [x] **UI/UX Miglioramenti**
+    - [x] Design responsive con Tailwind CSS
+    - [x] Sidebar animata con stato attivo
+    - [x] Snackbar per notifiche
+    - [x] Dialog di conferma per eliminazioni
     - [ ] Theme switching (light/dark mode)
     - [ ] Animazioni più fluide
-    - [ ] Responsive design completo
 
 - [ ] **Features Avanzate**
+    - [x] Selezione multipla per azioni batch (eliminazione multipla)
     - [ ] Ricerca globale
-    - [ ] Filtri avanzati salvabili
-    - [ ] Esportazione dati (CSV/PDF)
-    - [ ] Drag & drop per ordinamenti
+    - [ ] Esportazione dati (CSV/PDF) - bottone presente ma non funzionale
 
-- [ ] **Documentazione**
+- [x] **Documentazione & Struttura**
+    - [x] TypeScript per type safety
+    - [x] Componenti ben strutturati e separati
+    - [x] Commenti nel codice (alcuni TODO presenti)
     - [ ] Storybook per componenti
     - [ ] JSDoc completo
-    - [ ] Guide per contributors
-  
-- [x] **QOL**
-  - [x] Aggiungere Banner con Icone al README.md
-  - [ ] Guide about necessity to rename .env.example.env (and eventually modify it) 
-  - [x] Add dev+api in package.json to start both easily
 
-### 🔧 Refactoring Suggeriti
-1. **Abstract API Layer**: Creare client HTTP con interceptors
-2. **Custom Hooks**: Estrazione logica ripetitiva
-3. **Component Library**: Sistema design più strutturato
-4. **State Management**: Valutare Zustand per stato globale non-server
+## 📈 Progresso Generale: 60% completato
+
+Il progetto ha una base solida con l'architettura principale implementata.
+Mancano principalmente le funzionalità di creazione (drawer) e l'autenticazione completa.
+
+## 🐛 Troubleshooting
+
+### Problemi comuni con Docker
+1. **Porte già in uso**
+  - Modifica le porte in `.env` se 5173 o 3001 sono occupate
+
+2. **Permessi negati su node_modules**
+  - Su Linux/Mac: `sudo chown -R $USER:$USER .`
+  - Oppure ricostruisci (se si usa docker): `docker-compose up --build`
+
+3. **Container non si avvia**
+  - Verifica i log: `docker-compose logs app`
+  - Verifica che il Dockerfile e docker-compose.yml siano corretti
+
+### Problemi comuni locali
+1. **Errori di dipendenze**
+   ```bash
+   rm -rf node_modules package-lock.json
+   npm install
+   ```
+
+2. **Porte occupate**
+  - Cambia le porte in `.env`
+  - Oppure termina i processi sulle porte 5173/3001
 
 ## 🤝 Contribuire
 
 1. Fork del repository
-2. Crea un branch per la feature (`git checkout -b feature/AmazingFeature`)
-3. Commit delle modifiche (`git commit -m 'Add AmazingFeature'`)
-4. Push del branch (`git push origin feature/AmazingFeature`)
+2. Crea un branch per la feature (`git checkout -b feature/NuovaFeature`)
+3. Commit delle modifiche (`git commit -m 'Aggiungi NuovaFeature'`)
+4. Push del branch (`git push origin feature/NuovaFeature`)
 5. Apri una Pull Request
 
 ## 📄 Licenza
 
 Distribuito sotto licenza MIT. Vedi `LICENSE` per maggiori informazioni.
 
-## ✨ Caratteristiche Tecniche Evidenziate
+## ✨ Caratteristiche Tecniche
 
 ### **Gestione Stato Avanzata**
 - Cache intelligente con TanStack Query
@@ -323,7 +372,6 @@ Distribuito sotto licenza MIT. Vedi `LICENSE` per maggiori informazioni.
 
 ---
 
-Questo progetto dimostra competenze in architetture frontend moderne, gestione stato complessa, e best practices di sviluppo. Sono disponibile per approfondire qualsiasi scelta progettuale o discutere potenziali miglioramenti.
-
-**Autore**: Ștefan Narcis Cucoranu\
-**Status**: In sviluppo attivo
+**Autore**: Ștefan Narcis Cucoranu  
+**Status**: In sviluppo attivo  
+**Ultimo aggiornamento**: Febbraio 2024
