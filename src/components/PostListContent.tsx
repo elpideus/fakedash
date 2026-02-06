@@ -28,6 +28,7 @@ interface PostStruct {
     userId: string | number;
     title: string;
     content: string;
+    createdAt: string;
 }
 
 /** Defines the properties used by the component */
@@ -45,7 +46,7 @@ function PostListContent({ pagination, onPaginationChange, isPostDetailPage }: P
     const queryClient = useQueryClient();
     /** Keeps track of which MRT rows are currently selected. */
     const [rowSelection, setRowSelection] = useState<MRT_RowSelectionState>({});
-    /** Related to the \[rowSelection, setRowSelection\] pair just that it keeps track of which posts IDs have been selected */
+    /** Related to the [rowSelection, setRowSelection] pair just that it keeps track of which posts IDs have been selected */
     const [selectedPostIds, setSelectedPostIds] = useState<(string | number)[]>([]);
     /** Initializes a snackbar (notification) for later use */
     const [snackbar, setSnackbar] = useState<{open: boolean, message: string, severity: 'success' | 'error'}>({
@@ -55,16 +56,16 @@ function PostListContent({ pagination, onPaginationChange, isPostDetailPage }: P
     });
     /** State used to control the "Are you sure you want to delete this?" kind of dialog showing up */
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-    /** Similar to the \[deleteDialogOpen, setDeleteDialogOpen\] pair but for bulk deletion */
+    /** Similar to the [deleteDialogOpen, setDeleteDialogOpen] pair but for bulk deletion */
     const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
     /** Keeps track which post is going to be deleted */
     const [postToDelete, setPostToDelete] = useState<PostStruct | null>(null);
 
     /** Fetch Users once to use for mapping */
-        /* There is actually a better way of doing this. I am using this method temporarily (also because we are using
-        a fake API). We can fetch users in batches based on the current posts' pagination.
-        TODO:Implement optimized way of querying user data for posts list based of posts list pagination
-         */
+    /* There is actually a better way of doing this. I am using this method temporarily (also because we are using
+    a fake API). We can fetch users in batches based on the current posts' pagination.
+    TODO:Implement optimized way of querying user data for posts list based of posts list pagination
+     */
     const { data: users = [] } = useQuery<User[]>({
         queryKey: ['users'],
         queryFn: async () => {
@@ -100,6 +101,22 @@ function PostListContent({ pagination, onPaginationChange, isPostDetailPage }: P
         placeholderData: keepPreviousData,
         enabled: !isPostDetailPage, // Only fetch posts when not on detail page
     });
+
+    /** Format date function */
+    const formatDate = (dateString: string) => {
+        try {
+            const date = new Date(dateString);
+            return new Intl.DateTimeFormat('it-IT', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            }).format(date);
+        } catch (error) {
+            return dateString;
+        }
+    };
 
     /** Handle single delete click */
     const handleDeletePostClick = (post: PostStruct) => {
@@ -242,6 +259,15 @@ function PostListContent({ pagination, onPaginationChange, isPostDetailPage }: P
                 return user ? user.name : `User ${row.userId}`;
             },
         },
+        {
+            accessorKey: 'createdAt',
+            header: 'Data di creazione',
+            size: 180,
+            Cell: ({ cell }: { cell: any }) => {
+                const dateValue = cell.getValue<string>();
+                return dateValue ? formatDate(dateValue) : 'N/D';
+            },
+        },
     ], [users]);
 
     /** Stores number of selected posts for batch action */
@@ -283,6 +309,10 @@ function PostListContent({ pagination, onPaginationChange, isPostDetailPage }: P
                 <div className="mb-4">
                     <p className="text-sm text-black/60 font-medium">Autore</p>
                     <p className="text-lg text-black/80">{authorName}</p>
+                </div>
+                <div className="mb-4">
+                    <p className="text-sm text-black/60 font-medium">Data di creazione</p>
+                    <p className="text-lg text-black/80">{post.createdAt ? formatDate(post.createdAt) : 'N/D'}</p>
                 </div>
                 <div className="mb-4">
                     <p className="text-sm text-black/60 font-medium">Contenuto</p>

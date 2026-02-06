@@ -145,6 +145,23 @@ function Post() {
         if (!isEditing) setIsEditing(true);
     };
 
+    // Format date function
+    const formatDate = (dateString: string) => {
+        try {
+            const date = new Date(dateString);
+            return new Intl.DateTimeFormat('it-IT', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            }).format(date);
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        } catch (error) {
+            return dateString;
+        }
+    };
+
     // Show loading state
     if (postLoading) {
         return (
@@ -259,11 +276,17 @@ function Post() {
                         <h1 className="text-4xl font-bold text-gray-800 mb-4">{editedPost?.title || 'Titolo non disponibile'}</h1>
                     )}
                     <div className="flex items-center gap-4 text-gray-600">
-                        {userLoading ? (
-                            <span className="text-gray-400 italic">Caricamento autore...</span>
-                        ) : (
-                            <span className="font-medium">{user ? user.name : `User ${editedPost?.userId || 'non disponibile'}`}</span>
-                        )}
+                        <div className="flex items-center gap-2">
+                            {userLoading ? (
+                                <span className="text-gray-400 italic">Caricamento autore...</span>
+                            ) : (
+                                <span className="font-medium">{user ? user.name : `User ${editedPost?.userId || 'non disponibile'}`}</span>
+                            )}
+                            <span className="text-gray-400">•</span>
+                            <span className="text-sm text-gray-500">
+                                {editedPost?.createdAt ? formatDate(editedPost.createdAt) : 'Data non disponibile'}
+                            </span>
+                        </div>
                     </div>
                 </header>
 
