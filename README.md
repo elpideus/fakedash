@@ -6,17 +6,35 @@ Progetto al momento sotto attivo sviluppo!
 
 **FakeDash** è un'applicazione dashboard moderna e completa per la gestione di utenti e post, sviluppata come test di recruiting frontend. L'applicazione dimostra competenze avanzate in React, TypeScript, e gestione dello stato, implementando funzionalità CRUD complete con un backend simulato.
 
+<div align="center">
+
 ## 🚀 Stack Tecnologico
 
-- **React 19** + **TypeScript** - UI componentistica tipizzata
-- **Vite** + **Rolldown** - Build tool ottimizzato
-- **Material-UI (MUI)** - Componenti UI design system
-- **Material React Table** - Tabelle avanzate con TanStack Table
-- **TanStack Query** - Gestione dati asincroni e caching
-- **React Router v7** - Navigazione client-side
-- **Axios** - Client HTTP
-- **Tailwind CSS** - Styling utility-first
-- **JSON Server** - Backend REST simulato
+![Commit Activity](https://img.shields.io/github/commit-activity/w/elpideus/fakedash?color=0E8A16&logo=github&logoColor=white&label=Commits&style=for-the-badge)
+[![License](https://img.shields.io/github/license/elpideus/fakedash?color=4A148C&logo=opensourceinitiative&logoColor=white&label=License&style=for-the-badge)](https://github.com/elpideus/fakedash/blob/main/LICENSE)
+
+![React](https://img.shields.io/github/package-json/dependency-version/elpideus/fakedash/react?color=61DAFB&label=React&logo=react&logoColor=white&style=for-the-badge)
+![TypeScript](https://img.shields.io/github/package-json/dependency-version/elpideus/fakedash/dev/typescript?color=3178C6&label=TypeScript&logo=typescript&logoColor=white&style=for-the-badge)
+![Vite](https://img.shields.io/github/package-json/dependency-version/elpideus/fakedash/dev/vite?color=646CFF&label=Vite&logo=vite&logoColor=white&style=for-the-badge)
+
+![MUI](https://img.shields.io/github/package-json/dependency-version/elpideus/fakedash/@mui/material?color=007FFF&label=MUI&logo=mui&logoColor=white&style=for-the-badge)
+![Material React Table](https://img.shields.io/github/package-json/dependency-version/elpideus/fakedash/material-react-table?color=00A3E0&label=Material%20React%20Table&style=for-the-badge)
+![TanStack Query](https://img.shields.io/github/package-json/dependency-version/elpideus/fakedash/@tanstack/react-query?color=FF4154&label=TanStack%20Query&logo=react-query&logoColor=white&style=for-the-badge)
+![React Router](https://img.shields.io/github/package-json/dependency-version/elpideus/fakedash/react-router-dom?color=CA4245&label=React%20Router&logo=react-router&logoColor=white&style=for-the-badge)
+
+![Axios](https://img.shields.io/github/package-json/dependency-version/elpideus/fakedash/axios?color=5A29E4&label=Axios&logo=axios&logoColor=white&style=for-the-badge)
+![Tailwind CSS](https://img.shields.io/github/package-json/dependency-version/elpideus/fakedash/tailwindcss?color=38B2AC&label=Tailwind%20CSS&logo=tailwindcss&logoColor=white&style=for-the-badge)
+
+• **React 19** + **TypeScript** - UI componentistica tipizzata\
+• **Vite** + **Rolldown** - Build tool ottimizzato\
+• **Material-UI (MUI)** - Componenti UI design system\
+• **Material React Table** - Tabelle avanzate con TanStack Table\
+• **TanStack Query** - Gestione dati asincroni e caching\
+• **React Router v7** - Navigazione client-side\
+• **Axios** - Client HTTP\
+• **Tailwind CSS** - Styling utility-first\
+• **JSON Server** - Backend REST simulato
+</div>
 
 ## 🎯 Funzionalità Implementate
 
@@ -255,8 +273,8 @@ MRT offre:
     - [ ] Storybook per componenti
     - [ ] JSDoc completo
     - [ ] Guide per contributors
-- [ ] **QOL**
-  - [ ] Aggiungere Banner con Icone al README.md
+- [x] **QOL**
+  - [x] Aggiungere Banner con Icone al README.md
 
 ### 🔧 Refactoring Suggeriti
 1. **Abstract API Layer**: Creare client HTTP con interceptors
