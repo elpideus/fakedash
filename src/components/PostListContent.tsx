@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 // External libraries
 import axios from "axios";
-import {keepPreviousData, useQuery, useQueryClient} from "@tanstack/react-query";
-import type { MRT_PaginationState, MRT_RowSelectionState } from "material-react-table";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
+import type {MRT_ColumnDef, MRT_PaginationState, MRT_Row, MRT_RowSelectionState} from "material-react-table";
 
 // Material-UI components
 import AddIcon from '@mui/icons-material/Add';
@@ -15,6 +15,8 @@ import { Alert, Button, Dialog, DialogActions, DialogContent, DialogContentText,
 // Local/relative imports
 import { PrimaryButton, SecondaryButton } from "./Buttons.tsx";
 import ContentTable from './ContentTable.tsx';
+import { useTableStore } from '../hooks/useTableStore.ts';
+import formatDate from "../utils/formatDate.ts";
 
 /** Defines the User data structure used by this component */
 interface User {
@@ -38,18 +40,48 @@ interface PostListContentProps {
     isPostDetailPage: boolean;
 }
 
-
 function PostListContent({ pagination, onPaginationChange, isPostDetailPage }: PostListContentProps) {
     /** Using React Router */
     const navigate = useNavigate();
+    /** Store search parameters */
+    const [searchParams, setSearchParams] = useSearchParams();
     /** Using TanStack Query for better querying */
     const queryClient = useQueryClient();
-    /** Keeps track of which MRT rows are currently selected. */
-    const [rowSelection, setRowSelection] = useState<MRT_RowSelectionState>({});
+
+    /** Zustand store for table state */
+    const {
+        postTable,
+        setPostTablePagination,
+        setPostTableGlobalFilter,
+        setPostTableShowGlobalFilter,
+        setPostTableSelection
+    } = useTableStore();
+
+    /** Keep track of which MRT rows are currently selected. */
+    const rowSelection = postTable.rowSelection || {};
+    const setRowSelection = (updater: MRT_RowSelectionState | ((old: MRT_RowSelectionState) => MRT_RowSelectionState)) => {
+        const nextState = typeof updater === 'function' ? updater(rowSelection) : updater;
+        setPostTableSelection(nextState);
+    };
+
+    /** Initialize global filter from URL param 'q' if present, otherwise from Zustand store */
+    const [globalFilter, setGlobalFilter] = useState(() => {
+        const urlQ = searchParams.get('q');
+        // If URL has it, use it. Otherwise, use Zustand.
+        return urlQ !== null ? urlQ : postTable.globalFilter;
+    });
+
+    /** Set the table searchbar to the current query parameter's value */
+    const [showGlobalFilter, setShowGlobalFilter] = useState(() => {
+        const urlQ = searchParams.get('q');
+        // If there is a query in the URL, we want to show the filter bar
+        return urlQ !== null || postTable.showGlobalFilter;
+    });
+
     /** Related to the [rowSelection, setRowSelection] pair just that it keeps track of which posts IDs have been selected */
     const [selectedPostIds, setSelectedPostIds] = useState<(string | number)[]>([]);
-    /** Initializes a snackbar (notification) for later use */
-    const [snackbar, setSnackbar] = useState<{open: boolean, message: string, severity: 'success' | 'error'}>({
+    /** Initialize a snackbar (notification) for later use */
+    const [snackbar, setSnackbar] = useState<{ open: boolean, message: string, severity: 'success' | 'error' }>({
         open: false,
         message: '',
         severity: 'success'
@@ -58,15 +90,36 @@ function PostListContent({ pagination, onPaginationChange, isPostDetailPage }: P
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     /** Similar to the [deleteDialogOpen, setDeleteDialogOpen] pair but for bulk deletion */
     const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
-    /** Keeps track which post is going to be deleted */
+    /** Keep track which post is going to be deleted */
     const [postToDelete, setPostToDelete] = useState<PostStruct | null>(null);
 
+    /** Update URL when global filter changes */
+    useEffect(() => {
+        if (globalFilter) {
+            searchParams.set('q', globalFilter);
+        } else {
+            searchParams.delete('q');
+        }
+        setSearchParams(searchParams, { replace: true });
+    }, [globalFilter, searchParams, setSearchParams]);
+
+    /** Save pagination to Zustand store whenever it changes */
+    useEffect(() => {
+        setPostTablePagination(pagination);
+    }, [pagination, setPostTablePagination]);
+
+    /** Save global filter to Zustand store whenever it changes */
+    useEffect(() => {
+        setPostTableGlobalFilter(globalFilter);
+    }, [globalFilter, setPostTableGlobalFilter]);
+
+    /** Save showGlobalFilter to Zustand store whenever it changes */
+    useEffect(() => {
+        setPostTableShowGlobalFilter(showGlobalFilter);
+    }, [showGlobalFilter, setPostTableShowGlobalFilter]);
+
     /** Fetch Users once to use for mapping */
-    /* There is actually a better way of doing this. I am using this method temporarily (also because we are using
-    a fake API). We can fetch users in batches based on the current posts' pagination.
-    TODO:Implement optimized way of querying user data for posts list based of posts list pagination
-     */
-    const { data: users = [] } = useQuery<User[]>({
+    const { data: users = [], isLoading: usersLoading } = useQuery<User[]>({
         queryKey: ['users'],
         queryFn: async () => {
             const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost'}:${import.meta.env.VITE_API_PORT || '3001'}/users`);
@@ -74,48 +127,56 @@ function PostListContent({ pagination, onPaginationChange, isPostDetailPage }: P
         },
     });
 
-    /** Fetch Posts with proper pagination - only fetch when on the post list page */
-    const { data, isLoading, isError, isFetching, refetch } = useQuery({
-        queryKey: ['posts', pagination.pageIndex, pagination.pageSize],
-        queryFn: async () => {
-            // Fetch total count separately
-            const countResponse = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost'}:${import.meta.env.VITE_API_PORT || '3001'}/posts`);
-            const totalCount = countResponse.data.length;
+    /** Fetch Posts with proper pagination and filtering - only fetch when on the post-list page */
+    const { data, isLoading, isError, isFetching } = useQuery({
+        queryKey: ['posts', pagination.pageIndex, pagination.pageSize, globalFilter, users] as const,
+        queryFn: async ({ queryKey }) => {
+            // 1. Properly type the queryKey elements
+            const pageIndex = queryKey[1] as number;
+            const pageSize = queryKey[2] as number;
+            const filter = (queryKey[3] as string) || "";
+            const currentUsers = queryKey[4] as User[];
 
-            // Calculate start and end indices for the current page
-            const startIndex = pagination.pageIndex * pagination.pageSize;
-            const endIndex = startIndex + pagination.pageSize;
-
-            // Fetch ALL posts (json-server doesn't support efficient pagination)
             const allPostsResponse = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost'}:${import.meta.env.VITE_API_PORT || '3001'}/posts`);
-            const allPosts = allPostsResponse.data;
+            let allPosts = allPostsResponse.data as PostStruct[];
 
-            // Manually slice the array to get the current page
+            if (filter && currentUsers && Array.isArray(currentUsers)) {
+                const searchLower = filter.toLowerCase();
+                allPosts = allPosts.filter((post: PostStruct) => {
+                    const user = currentUsers.find((u: User) => String(u.id) === String(post.userId));
+                    const authorName = user ? user.name.toLowerCase() : '';
+
+                    return (
+                        post.title.toLowerCase().includes(searchLower) ||
+                        post.content.toLowerCase().includes(searchLower) ||
+                        authorName.includes(searchLower) ||
+                        String(post.id).toLowerCase().includes(searchLower) // Safe conversion
+                    );
+                });
+            }
+
+            const totalCount = allPosts.length;
+            // 2. Arithmetic is now safe because types are guaranteed
+            const startIndex = pageIndex * pageSize;
+            const endIndex = startIndex + pageSize;
             const paginatedPosts = allPosts.slice(startIndex, endIndex);
 
             return {
-                posts: paginatedPosts as PostStruct[],
+                posts: paginatedPosts,
                 totalCount: totalCount,
             };
         },
         placeholderData: keepPreviousData,
-        enabled: !isPostDetailPage, // Only fetch posts when not on detail page
+        enabled: !isPostDetailPage && !usersLoading,
     });
 
-    /** Format date function */
-    const formatDate = (dateString: string) => {
-        try {
-            const date = new Date(dateString);
-            return new Intl.DateTimeFormat('it-IT', {
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-            }).format(date);
-        } catch (error) {
-            return dateString;
-        }
+    /** Handle global filter change - reset to first page when searching */
+    const handleGlobalFilterChange = (filter: string) => {
+        setGlobalFilter(filter);
+        onPaginationChange({
+            ...pagination,
+            pageIndex: 0
+        });
     };
 
     /** Handle single delete click */
@@ -126,125 +187,59 @@ function PostListContent({ pagination, onPaginationChange, isPostDetailPage }: P
 
     /** Handle bulk delete click */
     const handleBulkDeleteClick = () => {
-        const selectedIds = Object.keys(rowSelection);
+        const selectedIds = Object.keys(rowSelection); // With getRowId, keys are IDs
         if (selectedIds.length === 0) return;
-
-        /** Get the actual post IDs from the selected rows */
-        const ids = selectedIds.map(index => {
-            const rowIndex = parseInt(index);
-            return data?.posts[rowIndex]?.id;
-        }).filter(id => id !== undefined);
-
-        setSelectedPostIds(ids);
+        setSelectedPostIds(selectedIds);
         setBulkDeleteDialogOpen(true);
     };
 
     /** Handle single post delete confirmation */
-    const handleDeletePost = () => {
+    const handleDeletePost = async () => {
         if (!postToDelete) return;
-
         setDeleteDialogOpen(false);
 
-        /** Update cache */
-        const currentData = queryClient.getQueryData(['posts', pagination.pageIndex, pagination.pageSize]);
-        if (currentData && typeof currentData === 'object' && 'posts' in currentData && 'totalCount' in currentData) {
-            const typedData = currentData as { posts: PostStruct[], totalCount: number };
-            const remainingPosts = typedData.posts.filter(p => p.id !== postToDelete.id);
+        try {
+            // TODO: Call API to actually remove the item
 
-            queryClient.setQueryData(['posts', pagination.pageIndex, pagination.pageSize], {
-                posts: remainingPosts,
-                totalCount: typedData.totalCount - 1
-            });
+            /* To make items "Shift", invalidate the query.
+            TanStack Query will re-run the queryFn, which re-slices the data,
+            naturally pulling the next item into the current page. */
+            await queryClient.invalidateQueries({ queryKey: ['posts'] });
+
+            setSnackbar({ open: true, message: `Post eliminato`, severity: 'success' });
+        } catch {
+            setSnackbar({ open: true, message: `Errore`, severity: 'error' });
         }
-
-        // Sets the snackbar (notification) content
-        setSnackbar({
-            open: true,
-            message: `Post "${postToDelete.title}" eliminato con successo`,
-            severity: 'success'
-        });
-
         setPostToDelete(null);
     };
 
     /** Handle bulk delete confirmation */
     const handleBulkDelete = async () => {
         setBulkDeleteDialogOpen(false);
-
         if (selectedPostIds.length === 0) return;
 
-        // Remove from local cache first for immediate UI update
-        const currentData = queryClient.getQueryData(['posts', pagination.pageIndex, pagination.pageSize]);
-        if (currentData && typeof currentData === 'object' && 'posts' in currentData && 'totalCount' in currentData) {
-            const typedData = currentData as { posts: PostStruct[], totalCount: number };
-            const remainingPosts = typedData.posts.filter(post => !selectedPostIds.includes(post.id));
-            const newTotalCount = typedData.totalCount - selectedPostIds.length;
+        try {
+            // TODO: Call API to actually remove the item
 
-            // Update the query cache
-            queryClient.setQueryData(['posts', pagination.pageIndex, pagination.pageSize], {
-                posts: remainingPosts,
-                totalCount: newTotalCount
-            });
+            setRowSelection({});
+            await queryClient.invalidateQueries({ queryKey: ['posts'] });
 
-            // Also update the all posts query
-            const allPostsData = queryClient.getQueryData(['posts-all']);
-            if (allPostsData && Array.isArray(allPostsData)) {
-                const remainingAllPosts = (allPostsData as PostStruct[]).filter(post => !selectedPostIds.includes(post.id));
-                queryClient.setQueryData(['posts-all'], remainingAllPosts);
-            }
-
-            // Check if we need to adjust pagination
-            const currentPageIndex = pagination.pageIndex;
-            const pageSize = pagination.pageSize;
-
-            // If current page is empty and not the first page, go to previous page
-            if (remainingPosts.length === 0 && currentPageIndex > 0) {
-                onPaginationChange({
-                    pageIndex: currentPageIndex - 1,
-                    pageSize: pageSize
-                });
-            }
-            // If we're on the first page and it's empty after deletion, just refetch
-            else if (remainingPosts.length === 0 && currentPageIndex === 0) {
-                // Keep same page but trigger refetch
-                await refetch();
-            }
+            setSnackbar({ open: true, message: `${selectedPostIds.length} post eliminati`, severity: 'success' });
+        } catch {
+            setSnackbar({ open: true, message: `Errore`, severity: 'error' });
         }
-
-        // Show success message
-        setSnackbar({
-            open: true,
-            message: `${selectedPostIds.length} post(s) eliminati con successo`,
-            severity: 'success'
-        });
-
-        // Clear selection
-        setRowSelection({});
-        setSelectedPostIds([]);
-
-        // Refetch data to fill empty spaces
-        setTimeout(() => {
-            refetch();
-        }, 100);
     };
 
-    /** Handle view post */
     const handleViewPost = (post: PostStruct) => {
         navigate(`/post/${post.id}`);
     };
 
-    /** Handle edit post */
     const handleEditPost = (post: PostStruct) => {
         navigate(`/post/${post.id}?edit=true`);
     };
 
-    /** Defines the columns for the Material React Table (MRT) */
-    const columns = React.useMemo(() => [
-        {
-            accessorKey: 'id',
-            header: 'ID',
-            size: 80,
-        },
+    /** Define the columns for the Material React Table (MRT) */
+    const columns = React.useMemo<MRT_ColumnDef<PostStruct>[]>(() => [
         {
             accessorKey: 'title',
             header: 'Titolo',
@@ -254,7 +249,7 @@ function PostListContent({ pagination, onPaginationChange, isPostDetailPage }: P
             id: 'author',
             header: 'Autore',
             size: 200,
-            accessorFn: (row: PostStruct) => {
+            accessorFn: (row) => {
                 const user = users.find(u => String(u.id) === String(row.userId));
                 return user ? user.name : `User ${row.userId}`;
             },
@@ -263,18 +258,15 @@ function PostListContent({ pagination, onPaginationChange, isPostDetailPage }: P
             accessorKey: 'createdAt',
             header: 'Data di creazione',
             size: 180,
-            Cell: ({ cell }: { cell: any }) => {
+            Cell: ({ cell }) => {
                 const dateValue = cell.getValue<string>();
                 return dateValue ? formatDate(dateValue) : 'N/D';
             },
         },
     ], [users]);
 
-    /** Stores number of selected posts for batch action */
     const selectedCount = Object.keys(rowSelection).length;
 
-    /** Component at the top of the page containing buttons such as the ones for creating new posts and downloading the
-     data */
     const renderTopToolbarCustomActions = () => (
         <div className="flex gap-4 items-center">
             {selectedCount > 0 && (
@@ -292,7 +284,6 @@ function PostListContent({ pagination, onPaginationChange, isPostDetailPage }: P
         </div>
     );
 
-    /** Accordion / Dropdown panel showing a preview of the post content. */
     const detailPanel = (post: PostStruct) => {
         const previewLength = 300;
         const showPreview = post.content.length > previewLength;
@@ -320,46 +311,34 @@ function PostListContent({ pagination, onPaginationChange, isPostDetailPage }: P
                         <p className="text-lg text-black/80 leading-relaxed pr-4 whitespace-pre-line">
                             {displayContent}
                         </p>
-
-                        {/* Fade effect for preview */}
                         {showPreview && (
                             <div className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-white to-transparent pointer-events-none"></div>
                         )}
                     </div>
                 </div>
 
-                {/* Read more link */}
                 {showPreview && (
-                    <Link
-                        to={`/post/${post.id}`}
-                        className="mt-4 inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 transition-colors duration-200 font-medium text-sm"
+                    <PrimaryButton
+                        /* Use the 'navigate' function you defined at the top of the component */
+                        onClick={() => navigate(`/post/${post.id}`)}
+                        className="mt-4 inline-flex items-center gap-1 text-white font-medium text-sm hover:bg-black/80"
                     >
                         Leggi di più
-                    </Link>
+                    </PrimaryButton>
                 )}
             </div>
         );
     };
 
-    /** Returns the row props */
-    const getRowProps = ({ row }: { row: any }) => {
-        if (!row?.original) {
-            return {
-                sx: {
-                    cursor: 'default',
-                }
-            };
-        }
-
+    /** Returns the row props with correct typing */
+    const getRowProps = ({ row }: { row: MRT_Row<PostStruct> }) => {
         return {
             onClick: (event: React.MouseEvent) => {
-                // Prevent navigation when clicking on certain elements
                 const target = event.target as HTMLElement;
                 const isActionButton = target.closest('button[class*="MuiIconButton"]');
                 const isCheckbox = target.closest('input[type="checkbox"], .MuiCheckbox-root, [role="checkbox"]');
                 const isExpansionToggle = target.closest('button[aria-label*="Expand"], button[aria-label*="Collapse"]');
 
-                // Only navigate if not clicking on action buttons, checkboxes, or expansion toggle
                 if (!isActionButton && !isCheckbox && !isExpansionToggle) handleViewPost(row.original);
             },
             sx: {
@@ -384,13 +363,14 @@ function PostListContent({ pagination, onPaginationChange, isPostDetailPage }: P
                     rowCount={data?.totalCount ?? 0}
                     pagination={pagination}
                     onPaginationChange={onPaginationChange}
-                    isLoading={isLoading}
+                    isLoading={isLoading || usersLoading}
                     isFetching={isFetching}
                     rowSelection={rowSelection}
                     onRowSelectionChange={setRowSelection}
+                    getRowId={(row) => String(row.id)}
                     enableRowSelection={true}
                     enableRowActions={true}
-                    showViewAction={false} // Hide View button
+                    showViewAction={false}
                     showEditAction={true}
                     showDeleteAction={true}
                     onEdit={handleEditPost}
@@ -399,9 +379,21 @@ function PostListContent({ pagination, onPaginationChange, isPostDetailPage }: P
                     detailPanel={detailPanel}
                     muiTableBodyRowProps={getRowProps}
                     title="Gestione dei post"
-                    totalCountText={isLoading ? "Caricamento..." : `${data?.totalCount ?? 0} post totali`}
+                    totalCountText={
+                        isLoading || usersLoading
+                            ? "Caricamento..."
+                            : globalFilter
+                                ? `${data?.totalCount ?? 0} risultati trovati (ricerca: "${globalFilter}")`
+                                : `${data?.totalCount ?? 0} post totali`
+                    }
                     selectedCount={selectedCount}
                     renderTopToolbarCustomActions={renderTopToolbarCustomActions}
+                    globalFilter={globalFilter}
+                    onGlobalFilterChange={(filter) => {
+                        handleGlobalFilterChange(filter);
+                    }}
+                    showGlobalFilter={showGlobalFilter}
+                    onShowGlobalFilterChange={setShowGlobalFilter}
                 />
             )}
 
@@ -411,10 +403,12 @@ function PostListContent({ pagination, onPaginationChange, isPostDetailPage }: P
                 onClose={() => setDeleteDialogOpen(false)}
                 aria-labelledby="delete-post-dialog-title"
                 aria-describedby="delete-post-dialog-description"
-                PaperProps={{
-                    sx: {
-                        borderRadius: '16px',
-                        padding: '8px'
+                slotProps={{
+                    paper: {
+                        sx: {
+                            borderRadius: '16px',
+                            padding: '8px'
+                        }
                     }
                 }}
             >
@@ -453,10 +447,12 @@ function PostListContent({ pagination, onPaginationChange, isPostDetailPage }: P
                 onClose={() => setBulkDeleteDialogOpen(false)}
                 aria-labelledby="bulk-delete-dialog-title"
                 aria-describedby="bulk-delete-dialog-description"
-                PaperProps={{
-                    sx: {
-                        borderRadius: '16px',
-                        padding: '8px'
+                slotProps={{
+                    paper: {
+                        sx: {
+                            borderRadius: '16px',
+                            padding: '8px'
+                        }
                     }
                 }}
             >
@@ -489,7 +485,6 @@ function PostListContent({ pagination, onPaginationChange, isPostDetailPage }: P
                 </DialogActions>
             </Dialog>
 
-            {/* Snackbar for notifications */}
             <Snackbar
                 open={snackbar.open}
                 autoHideDuration={3000}

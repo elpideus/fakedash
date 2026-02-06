@@ -43,6 +43,11 @@ interface ContentTableProps<T extends MRT_RowData> {
     totalCountText?: string;
     selectedCount?: number;
     renderTopToolbarCustomActions?: () => React.ReactNode;
+    globalFilter?: string;
+    onGlobalFilterChange?: (filter: string) => void;
+    showGlobalFilter?: boolean;
+    onShowGlobalFilterChange?: (show: boolean) => void;
+    getRowId?: (row: T) => string;
 }
 
 function ContentTable<T extends MRT_RowData>({
@@ -54,6 +59,7 @@ function ContentTable<T extends MRT_RowData>({
                                                  isLoading,
                                                  isFetching,
                                                  rowSelection = {},
+                                                 getRowId,
                                                  onRowSelectionChange,
                                                  enableRowSelection = false,
                                                  enableRowActions = false,
@@ -68,7 +74,11 @@ function ContentTable<T extends MRT_RowData>({
                                                  title,
                                                  totalCountText,
                                                  selectedCount = 0,
-                                                 renderTopToolbarCustomActions
+                                                 renderTopToolbarCustomActions,
+                                                 globalFilter = '',
+                                                 onGlobalFilterChange,
+                                                 showGlobalFilter = false,
+                                                 onShowGlobalFilterChange
                                              }: ContentTableProps<T>) {
 
     /** Actions Area */
@@ -85,7 +95,7 @@ function ContentTable<T extends MRT_RowData>({
                         <IconButton
                             size="small"
                             onClick={() => onView(row.original)}
-                            className="text-blue-600 hover:bg-blue-50"
+                            className="text-black/80 hover:bg-black/10"
                         >
                             <VisibilityIcon fontSize="small" />
                         </IconButton>
@@ -96,7 +106,7 @@ function ContentTable<T extends MRT_RowData>({
                         <IconButton
                             size="small"
                             onClick={() => onEdit(row.original)}
-                            className="text-green-600 hover:bg-green-50"
+                            className="text-black/80 hover:bg-black/10"
                         >
                             <EditIcon fontSize="small" />
                         </IconButton>
@@ -107,7 +117,7 @@ function ContentTable<T extends MRT_RowData>({
                         <IconButton
                             size="small"
                             onClick={() => onDelete(row.original)}
-                            className="text-red-600 hover:bg-red-50"
+                            className="text-black/80 hover:bg-black/10"
                         >
                             <DeleteIcon fontSize="small" />
                         </IconButton>
@@ -126,7 +136,7 @@ function ContentTable<T extends MRT_RowData>({
         ? ({ row }: { row: MRT_Row<T>; table: MRT_TableInstance<T> }) => {
             if (!row.original) {
                 return (
-                    <div className="p-4 bg-gray-50 text-gray-600">
+                    <div className="p-4 bg-black/5 text-black/60">
                         Dati non disponibili
                     </div>
                 );
@@ -136,7 +146,7 @@ function ContentTable<T extends MRT_RowData>({
             } catch (error) {
                 console.error('Error rendering detail panel:', error);
                 return (
-                    <div className="p-4 bg-red-50 text-red-600">
+                    <div className="p-4 bg-black/10 text-black/70">
                         Errore nel caricamento dei dettagli
                     </div>
                 );
@@ -146,13 +156,13 @@ function ContentTable<T extends MRT_RowData>({
 
     return (
         <div className="flex-1 px-4 pb-4 overflow-hidden flex flex-col">
-            <div className="mb-4">
-                <h1 className="text-4xl font-light text-gray-800">{title}</h1>
-                <div className="flex justify-between items-center mt-2">
+            <div className="mb-4 mt-6">
+                <h1 className="text-4xl font-light text-black/80">{title}</h1>
+                <div className="flex justify-between items-center -mt-2">
                     <span className="text-sm text-black/50">
                         {isLoading ? "Caricamento..." : totalCountText || `${rowCount} elementi totali`}
                         {selectedCount > 0 && (
-                            <span className="ml-4 text-blue-600 font-medium">
+                            <span className="ml-4 text-black/50 font-medium">
                                 {selectedCount} selezionati
                             </span>
                         )}
@@ -165,6 +175,8 @@ function ContentTable<T extends MRT_RowData>({
                 columns={finalColumns}
                 data={data}
                 manualPagination
+                manualFiltering
+                getRowId={getRowId}
                 rowCount={rowCount}
                 enableRowSelection={enableRowSelection}
                 onRowSelectionChange={(updaterOrValue) => {
@@ -177,13 +189,50 @@ function ContentTable<T extends MRT_RowData>({
                         typeof updaterOrValue === 'function' ? updaterOrValue(pagination) : updaterOrValue;
                     onPaginationChange(newPagination);
                 }}
+                onGlobalFilterChange={(updaterOrValue) => {
+                    const newFilter =
+                        typeof updaterOrValue === 'function' ? updaterOrValue(globalFilter) : updaterOrValue;
+                    onGlobalFilterChange?.(newFilter ?? '');
+                }}
+                onShowGlobalFilterChange={(updaterOrValue) => {
+                    const newShowGlobalFilter =
+                        typeof updaterOrValue === 'function' ? updaterOrValue(showGlobalFilter) : updaterOrValue;
+                    onShowGlobalFilterChange?.(newShowGlobalFilter);
+                }}
                 state={{
                     isLoading,
                     pagination,
                     rowSelection,
                     showProgressBars: isFetching,
+                    globalFilter,
+                    showGlobalFilter,
                 }}
-                muiTableBodyRowProps={muiTableBodyRowProps}
+                muiTableBodyRowProps={({ row, table, staticRowIndex, isDetailPanel }) => {
+                    const isSelected = row.getIsSelected();
+                    const baseProps = muiTableBodyRowProps ? muiTableBodyRowProps({
+                        row,
+                        table,
+                        staticRowIndex,
+                        isDetailPanel
+                    }) : {};
+
+                    return {
+                        ...baseProps,
+                        style: {
+                            ...(baseProps.style || {}),
+                            backgroundColor: isSelected ? 'rgba(0, 0, 0, 0.08) !important' : 'transparent',
+                        },
+                        className: baseProps.className,
+                        onMouseEnter: baseProps.onMouseEnter,
+                        onMouseLeave: baseProps.onMouseLeave,
+                        onClick: baseProps.onClick,
+                        sx: {
+                            '&:hover': {
+                                backgroundColor: isSelected ? 'rgba(0, 0, 0, 0.12) !important' : 'rgba(0, 0, 0, 0.04)',
+                            },
+                        },
+                    };
+                }}
                 renderDetailPanel={renderDetailPanelSafe}
                 muiTablePaperProps={{
                     elevation: 0,
@@ -193,7 +242,22 @@ function ContentTable<T extends MRT_RowData>({
                         display: 'flex',
                         flexDirection: 'column',
                         height: '100%',
-                        overflow: 'hidden'
+                        overflow: 'hidden',
+                        '& .MuiTableRow-root.Mui-selected': {
+                            backgroundColor: 'rgba(0, 0, 0, 0.08) !important',
+                        },
+                        '& .MuiTableRow-root.Mui-selected:hover': {
+                            backgroundColor: 'rgba(0, 0, 0, 0.12) !important',
+                        },
+                        '& .MuiButton-text': {
+                            color: 'rgba(0, 0, 0, 0.8)',
+                            textTransform: 'none',
+                            fontWeight: 500,
+                            padding: ".5em 1em .5em 1em"
+                        },
+                        '& .MuiButton-text:hover': {
+                            backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                        },
                     }
                 }}
                 muiTableContainerProps={{
@@ -202,6 +266,80 @@ function ContentTable<T extends MRT_RowData>({
                         overflow: 'auto'
                     }
                 }}
+                muiTableBodyRowDragHandleProps={{
+                    sx: {
+                        color: 'rgba(0, 0, 0, 0.5)',
+                    }
+                }}
+                muiBottomToolbarProps={{
+                    sx: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.02)',
+                        borderTop: '1px solid rgba(0, 0, 0, 0.1)',
+                    }
+                }}
+                muiTopToolbarProps={{
+                    sx: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.02)',
+                        borderBottom: '1px solid rgba(0, 0, 0, 0.1)',
+                        '& .MuiAlert-root': {
+                            backgroundColor: 'transparent',
+                            color: 'rgba(0, 0, 0, 0.8)',
+                            padding: '0',
+                        },
+                        '& .MuiAlert-message': {
+                            padding: '8px 0',
+                        },
+                    }
+                }}
+                muiTableHeadCellProps={{
+                    sx: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.02)',
+                        color: 'rgba(0, 0, 0, 0.8)',
+                        fontWeight: 600,
+                        '& .MuiCheckbox-root': {
+                            color: 'rgba(0, 0, 0, 0.6)',
+                            '&.Mui-checked': {
+                                color: 'rgba(0, 0, 0, 0.8)',
+                            },
+                        },
+                    }
+                }}
+                muiTableBodyCellProps={{
+                    sx: {
+                        color: 'rgba(0, 0, 0, 0.7)',
+                    }
+                }}
+                muiSelectCheckboxProps={{
+                    sx: {
+                        color: 'rgba(0, 0, 0, 0.6)',
+                        '&.Mui-checked': {
+                            color: 'rgba(0, 0, 0, 0.8)',
+                        }
+                    }
+                }}
+                muiSelectAllCheckboxProps={{
+                    sx: {
+                        color: 'rgba(0, 0, 0, 0.6)',
+                        '&.Mui-checked': {
+                            color: 'rgba(0, 0, 0, 0.8)',
+                        }
+                    }
+                }}
+                muiRowNumbersProps={{
+                    sx: {
+                        color: 'rgba(0, 0, 0, 0.5)',
+                    }
+                }}
+                enableGlobalFilterModes
+                enableColumnOrdering
+                enableColumnFilters={false}
+                enableSorting
+                enableFilters
+                enableHiding
+                enableGlobalFilter
+                enableDensityToggle
+                enableFullScreenToggle
+                enableStickyHeader
                 localization={{
                     actions: 'Azioni',
                     and: 'e',
@@ -226,7 +364,6 @@ function ContentTable<T extends MRT_RowData>({
                     hideColumn: 'Nascondi colonna {column}',
                     max: 'Max',
                     min: 'Min',
-                    move: 'Muovi',
                     noRecordsToDisplay: 'Nessun record da visualizzare',
                     noResultsFound: 'Nessun risultato trovato',
                     of: 'di',
@@ -260,6 +397,7 @@ function ContentTable<T extends MRT_RowData>({
                     ungroupByColumn: 'Separa per {column}',
                     unpin: 'Sblocca',
                     unpinAll: 'Sblocca tutto',
+                    clearSelection: 'Deseleziona',
                 }}
             />
         </div>

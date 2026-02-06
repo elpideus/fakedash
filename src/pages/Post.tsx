@@ -156,32 +156,33 @@ function Post() {
                 hour: '2-digit',
                 minute: '2-digit'
             }).format(date);
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        } catch (error) {
+        } catch {
             return dateString;
         }
     };
 
     // Show loading state
-    if (postLoading) {
+    if (postLoading || isDeleting) {
         return (
             <div className="p-8 h-full flex items-center justify-center">
                 <div className="text-center">
-                    <CircularProgress size={60} />
-                    <p className="mt-4 text-gray-600">Caricamento del post...</p>
+                    <CircularProgress size={60} sx={{color: "#4a5565"}} />
+                    <p className="mt-4 text-gray-600">
+                        {isDeleting ? "Eliminazione del post in corso..." : "Caricamento del post..."}
+                    </p>
                 </div>
             </div>
         );
     }
 
-    // Show error state
-    if (postError || !post) {
+    // Show error state (but not when deleting)
+    if ((postError && !isDeleting) || (!post && !isDeleting)) {
         return (
             <div className="p-8 h-full">
                 <div className="mb-6">
                     <Link
                         to="/"
-                        className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800"
+                        className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-800"
                     > {/* Using React Router's Link component to have proper routing */}
                         <ArrowBackIcon /> Torna alla lista
                     </Link>
@@ -204,10 +205,14 @@ function Post() {
             <div className="flex justify-between items-center mb-6">
                 <Link
                     to="/"
-                    className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800"
-                > {/* Using React Router's Link component to have proper routing */}
-                    <ArrowBackIcon /> Torna alla lista
+                    className="group inline-flex items-center gap-2 text-gray-600 hover:text-gray-800 transition-all duration-200"
+                >
+                    <span className="inline-block transition-transform duration-200 group-hover:-translate-x-2 delay-150">
+                        <ArrowBackIcon />
+                    </span>
+                    <span className="group-hover:scale-110 transition-all duration-200">Torna alla lista</span>
                 </Link>
+
 
                 {/* Edit/Delete buttons (only show when not editing) */}
                 {/* TODO: Do not show if not logged in */}

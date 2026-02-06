@@ -25,6 +25,7 @@ Progetto al momento sotto attivo sviluppo!
 ### Data Management
 ![TanStack Query](https://img.shields.io/github/package-json/dependency-version/elpideus/fakedash/@tanstack/react-query?color=FF4154&label=TanStack%20Query&logo=react-query&logoColor=white&style=for-the-badge)
 ![Axios](https://img.shields.io/github/package-json/dependency-version/elpideus/fakedash/axios?color=5A29E4&label=Axios&logo=axios&logoColor=white&style=for-the-badge)
+![Zustand](https://img.shields.io/github/package-json/dependency-version/elpideus/fakedash/zustand?color=FF6B00&label=Zustand&logo=react&logoColor=white&style=for-the-badge)
 
 ### Backend Simulato
 - **JSON Server** - REST API mock
@@ -33,7 +34,7 @@ Progetto al momento sotto attivo sviluppo!
 
 ### ✅ Completate
 - **🔐 Autenticazione**: Login con validazione e UI responsive
-- **📊 Dashboard**: Layout sidebar + contenuto principale con navigazione
+- **📊 Post**: Layout sidebar + contenuto principale (post) con navigazione
 - **📝 Gestione Post**: 
   - Tabella con paginazione server-side, filtri e ordinamento
   - CRUD completo (crea, leggi, modifica, elimina)
@@ -259,7 +260,7 @@ DELETE /posts/:id       # Elimina post
     - [x] Navigazione al dettaglio singolo post (`Post.tsx`)
     - [ ] Modifica ed eliminazione di un post
     - [ ] Creazione nuovo post tramite Drawer
-    - [ ] Preservazione stato tabella al ritorno dal dettaglio
+    - [x] Preservazione stato tabella al ritorno dal dettaglio
 
 - [ ] **Utenti - Funzionalità Base**
     - [x] Lista utenti con tabella (`UserListContent.tsx`)
@@ -268,7 +269,7 @@ DELETE /posts/:id       # Elimina post
     - [ ] Creazione nuovo utente tramite Drawer
     - [ ] Modifica ed eliminazione utente
     - [ ] Mostrare i posts dell'utente nel dettaglio
-    - [ ] Preservazione stato tabella al ritorno dal dettaglio
+    - [x] Preservazione stato tabella al ritorno dal dettaglio
 
 ### ⚡ Priorità Media
 - [x] **Performance Ottimizzazioni**

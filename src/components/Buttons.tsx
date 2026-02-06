@@ -7,9 +7,18 @@ export const PrimaryButton = styled(Button)(() => ({
     padding: "10px 20px",
     borderRadius: "12px",
     textTransform: "none",
-    "&:hover": {
-        backgroundColor: "#00000080",
+
+    "&.MuiButton-root": {
+        color: "#fff",
     },
+
+    "&:hover": {
+        "&.MuiButton-root": {
+            backgroundColor: "#00000080",
+            color: "#fff",
+        }
+    }
+
 }));
 
 export const SecondaryButton = styled(Button)(() => ({

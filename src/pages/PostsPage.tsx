@@ -6,7 +6,7 @@ import UserListContent from "../components/UserListContent.tsx";
 import Post from "./Post.tsx";
 import type {MRT_PaginationState} from "material-react-table";
 
-function DashboardPage() {
+function PostsPage() {
     /** Sets the currently active sidebar menu option */
     const [currentlyActive, setCurrentlyActive] = useState(0);
 
@@ -54,7 +54,6 @@ function DashboardPage() {
                     } />
                     <Route path="post/:postId" element={<Post />} />
                     <Route path="users" element={<UserListContent />} />
-                    <Route path="dashboard" element={<div className="p-8">Dashboard Content</div>} />
                     {/* Catch-all route for any unmatched paths */}
                     {/* TODO: Add a 404 route for unmatched paths */}
                     <Route path="*" element={
@@ -70,4 +69,4 @@ function DashboardPage() {
     );
 }
 
-export default DashboardPage;
+export default PostsPage;
