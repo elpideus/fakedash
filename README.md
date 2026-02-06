@@ -118,11 +118,13 @@ cd fakedash
 # 2. Installa dipendenze
 npm install
 
-# 3. Avvia JSON Server (backend fake)
-# In un terminale separato:
-npx json-server --watch db.json --port 3001
+# 3. Avvia il progetto
+npm run dev+api
 
-# 4. Avvia l'applicazione
+# Oppure puoi avviare manualmente back-end poi front-end (sconsigliato)
+# In un terminale:
+npx json-server --watch db.json --port 3001
+# In un altro terminale
 npm run dev
 ```
 
@@ -273,8 +275,11 @@ MRT offre:
     - [ ] Storybook per componenti
     - [ ] JSDoc completo
     - [ ] Guide per contributors
+  
 - [x] **QOL**
   - [x] Aggiungere Banner con Icone al README.md
+  - [ ] Guide about necessity to rename .env.example.env (and eventually modify it) 
+  - [x] Add dev+api in package.json to start both easily
 
 ### 🔧 Refactoring Suggeriti
 1. **Abstract API Layer**: Creare client HTTP con interceptors
