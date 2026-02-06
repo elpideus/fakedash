@@ -55,7 +55,7 @@ function Post() {
     const { data: post, isLoading: postLoading, isError: postError } = useQuery<Post>({
         queryKey: ['post', postId],
         queryFn: async () => {
-            const res = await axios.get(`${import.meta.env.VITE_MY_VAR || 'http://localhost:3001'}/posts?id=${postId}`);
+            const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost'}:${import.meta.env.VITE_API_PORT || '3001'}/posts?id=${postId}`);
             const postData = res.data[0];
             setEditedPost(postData); /** Initialize edit page with the post's data */
             return postData;
@@ -67,7 +67,7 @@ function Post() {
     const { data: user, isLoading: userLoading } = useQuery<User>({
         queryKey: ['user', post?.userId],
         queryFn: async () => {
-            const res = await axios.get(`${import.meta.env.VITE_MY_VAR || 'http://localhost:3001'}/users?id=${post?.userId}`);
+            const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost'}:${import.meta.env.VITE_API_PORT || '3001'}/users?id=${post?.userId}`);
             return res.data[0];
         },
         enabled: !!post?.userId,

@@ -68,7 +68,7 @@ function PostListContent({ pagination, onPaginationChange, isPostDetailPage }: P
     const { data: users = [] } = useQuery<User[]>({
         queryKey: ['users'],
         queryFn: async () => {
-            const res = await axios.get("http://localhost:3001/users");
+            const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost'}:${import.meta.env.VITE_API_PORT || '3001'}/users`);
             return res.data;
         },
     });
@@ -78,7 +78,7 @@ function PostListContent({ pagination, onPaginationChange, isPostDetailPage }: P
         queryKey: ['posts', pagination.pageIndex, pagination.pageSize],
         queryFn: async () => {
             // Fetch total count separately
-            const countResponse = await axios.get("http://localhost:3001/posts");
+            const countResponse = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost'}:${import.meta.env.VITE_API_PORT || '3001'}/posts`);
             const totalCount = countResponse.data.length;
 
             // Calculate start and end indices for the current page
@@ -86,7 +86,7 @@ function PostListContent({ pagination, onPaginationChange, isPostDetailPage }: P
             const endIndex = startIndex + pagination.pageSize;
 
             // Fetch ALL posts (json-server doesn't support efficient pagination)
-            const allPostsResponse = await axios.get("http://localhost:3001/posts");
+            const allPostsResponse = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost'}:${import.meta.env.VITE_API_PORT || '3001'}/posts`);
             const allPosts = allPostsResponse.data;
 
             // Manually slice the array to get the current page

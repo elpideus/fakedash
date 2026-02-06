@@ -53,7 +53,7 @@ function UserListContent() {
         queryKey: ['users-list', pagination.pageIndex, pagination.pageSize],
         queryFn: async () => {
             try {
-                const allUsersData = await axios.get("http://localhost:3001/users");
+                const allUsersData = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost'}:${import.meta.env.VITE_API_PORT || '3001'}/users`);
                 const totalCount = allUsersData.data.length;
                 const startIndex = pagination.pageIndex * pagination.pageSize;
                 const endIndex = startIndex + pagination.pageSize;
