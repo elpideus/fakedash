@@ -122,7 +122,7 @@ function PostListContent({ pagination, onPaginationChange, isPostDetailPage }: P
     const { data: users = [], isLoading: usersLoading } = useQuery<User[]>({
         queryKey: ['users'],
         queryFn: async () => {
-            const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost'}:${import.meta.env.VITE_API_PORT || '3001'}/users`);
+            const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost'}${import.meta.env.VITE_API_PORT? `:${import.meta.env.VITE_API_PORT}` : ''}/users`);
             return res.data;
         },
     });
@@ -137,7 +137,7 @@ function PostListContent({ pagination, onPaginationChange, isPostDetailPage }: P
             const filter = (queryKey[3] as string) || "";
             const currentUsers = queryKey[4] as User[];
 
-            const allPostsResponse = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost'}:${import.meta.env.VITE_API_PORT || '3001'}/posts`);
+            const allPostsResponse = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost'}${import.meta.env.VITE_API_PORT ? `:${import.meta.env.VITE_API_PORT}` : ''}/posts`);
             let allPosts = allPostsResponse.data as PostStruct[];
 
             if (filter && currentUsers && Array.isArray(currentUsers)) {

@@ -116,7 +116,7 @@ function UserListContent() {
     const { data, isLoading, isError, isFetching } = useQuery<{ users: User[]; totalCount: number; }>({
         queryKey: ['users-list', pagination.pageIndex, pagination.pageSize, globalFilter],
         queryFn: async () => {
-            const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost'}:${import.meta.env.VITE_API_PORT || '3001'}/users`);
+            const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost'}${import.meta.env.VITE_API_PORT ? `:${import.meta.env.VITE_API_PORT}` : ''}/users`);
             let allUsers = res.data as User[];
 
             // Apply global filter from URL or search box
