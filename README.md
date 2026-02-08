@@ -250,25 +250,25 @@ DELETE /posts/:id       # Elimina post
 ### 🚨 Priorità Alta
 - [x] **Autenticazione (fake)**
     - [x] Pagina di login implementata (`Login.tsx`)
-    - [ ] UI login con validazione base
-    - [ ] Gestione stato utente loggato
-    - [ ] Protezione rotte con React Router
+    - [x] UI login con validazione base
+    - [x] Gestione stato utente loggato
+    - [x] Protezione rotte con React Router
 
 - [x] **Post - Funzionalità Base**
     - [x] Lista dei post con tabella (`PostListContent.tsx`)
     - [x] Visualizzazione Material React Table con paginazione e filtri
     - [x] Navigazione al dettaglio singolo post (`Post.tsx`)
-    - [ ] Modifica ed eliminazione di un post
+    - [x] Modifica ed eliminazione di un post
     - [ ] Creazione nuovo post tramite Drawer
     - [x] Preservazione stato tabella al ritorno dal dettaglio
 
 - [ ] **Utenti - Funzionalità Base**
     - [x] Lista utenti con tabella (`UserListContent.tsx`)
     - [x] Visualizzazione Material React Table con paginazione e filtri
-    - [ ] Navigazione al dettaglio singolo utente
+    - [x] Navigazione al dettaglio singolo utente
     - [ ] Creazione nuovo utente tramite Drawer
-    - [ ] Modifica ed eliminazione utente
-    - [ ] Mostrare i posts dell'utente nel dettaglio
+    - [x] Modifica ed eliminazione utente
+    - [x] Mostrare i posts dell'utente nel dettaglio
     - [x] Preservazione stato tabella al ritorno dal dettaglio
 
 ### ⚡ Priorità Media
@@ -307,7 +307,7 @@ DELETE /posts/:id       # Elimina post
     - [ ] Storybook per componenti
     - [ ] JSDoc completo
 
-## 📈 Progresso Generale: 60% completato
+## 📈 Progresso Generale: 70% completato
 
 Il progetto ha una base solida con l'architettura principale implementata.
 Mancano principalmente le funzionalità di creazione (drawer) e l'autenticazione completa.
