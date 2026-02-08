@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import {
     MaterialReactTable,
     type MRT_ColumnDef,
@@ -6,7 +6,10 @@ import {
     type MRT_RowData,
     type MRT_RowSelectionState,
     type MRT_Row,
-    type MRT_TableInstance
+    type MRT_TableInstance,
+    type MRT_SortingState,
+    type MRT_ColumnOrderState,
+    type MRT_VisibilityState
 } from "material-react-table";
 import { IconButton, Tooltip } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -48,6 +51,20 @@ interface ContentTableProps<T extends MRT_RowData> {
     showGlobalFilter?: boolean;
     onShowGlobalFilterChange?: (show: boolean) => void;
     getRowId?: (row: T) => string;
+    // New props for tracking additional table states
+    sorting?: MRT_SortingState;
+    onSortingChange?: (sorting: MRT_SortingState) => void;
+    columnOrder?: MRT_ColumnOrderState;
+    onColumnOrderChange?: (columnOrder: MRT_ColumnOrderState) => void;
+    columnVisibility?: MRT_VisibilityState;
+    onColumnVisibilityChange?: (columnVisibility: MRT_VisibilityState) => void;
+    columnPinning?: { left?: string[], right?: string[] };
+    onColumnPinningChange?: (columnPinning: { left?: string[], right?: string[] }) => void;
+    // Scroll position props
+    scrollPosition?: number;
+    onScrollPositionChange?: (scrollPosition: number) => void;
+    tableKey?: string;
+    isRowActionEnabled?: (row: T) => boolean;// Unique key for scroll tracking
 }
 
 function ContentTable<T extends MRT_RowData>({
@@ -78,8 +95,64 @@ function ContentTable<T extends MRT_RowData>({
                                                  globalFilter = '',
                                                  onGlobalFilterChange,
                                                  showGlobalFilter = false,
-                                                 onShowGlobalFilterChange
+                                                 onShowGlobalFilterChange,
+                                                 sorting = [],
+                                                 onSortingChange,
+                                                 columnOrder = [],
+                                                 onColumnOrderChange,
+                                                 columnVisibility = {},
+                                                 onColumnVisibilityChange,
+                                                 columnPinning = { left: [], right: [] },
+                                                 onColumnPinningChange,
+                                                 scrollPosition = 0,
+                                                 onScrollPositionChange,
+                                                 isRowActionEnabled
                                              }: ContentTableProps<T>) {
+
+    const tableContainerRef = useRef<HTMLDivElement>(null);
+    const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const isInitialScrollDone = useRef(false);
+
+    /** Save scroll position with debounce */
+    const handleScroll = () => {
+        if (!tableContainerRef.current) return;
+
+        const scrollTop = tableContainerRef.current.scrollTop;
+
+        if (scrollTimeoutRef.current) {
+            clearTimeout(scrollTimeoutRef.current);
+        }
+
+        scrollTimeoutRef.current = setTimeout(() => {
+            onScrollPositionChange?.(scrollTop);
+        }, 150); // Debounce to prevent too many updates
+    };
+
+    /** Restore scroll position when data loads */
+    useEffect(() => {
+        if (!isLoading && !isFetching && tableContainerRef.current && scrollPosition > 0 && !isInitialScrollDone.current) {
+            requestAnimationFrame(() => {
+                if (tableContainerRef.current) {
+                    tableContainerRef.current.scrollTop = scrollPosition;
+                    isInitialScrollDone.current = true;
+                }
+            });
+        }
+    }, [isLoading, isFetching, scrollPosition]);
+
+    /** Reset initial scroll flag when pagination changes */
+    useEffect(() => {
+        isInitialScrollDone.current = false;
+    }, [pagination.pageIndex]);
+
+    /** Cleanup timeout on unmount */
+    useEffect(() => {
+        return () => {
+            if (scrollTimeoutRef.current) {
+                clearTimeout(scrollTimeoutRef.current);
+            }
+        };
+    }, []);
 
     /** Actions Area */
     const actionColumn: MRT_ColumnDef<T> = {
@@ -88,43 +161,50 @@ function ContentTable<T extends MRT_RowData>({
         size: 150,
         enableColumnFilter: false,
         enableSorting: false,
-        Cell: ({ row }) => (
-            <div className="flex gap-1">
-                {showViewAction && onView && row.original && (
-                    <Tooltip title="Visualizza">
-                        <IconButton
-                            size="small"
-                            onClick={() => onView(row.original)}
-                            className="text-black/80 hover:bg-black/10"
-                        >
-                            <VisibilityIcon fontSize="small" />
-                        </IconButton>
-                    </Tooltip>
-                )}
-                {showEditAction && onEdit && row.original && (
-                    <Tooltip title="Modifica">
-                        <IconButton
-                            size="small"
-                            onClick={() => onEdit(row.original)}
-                            className="text-black/80 hover:bg-black/10"
-                        >
-                            <EditIcon fontSize="small" />
-                        </IconButton>
-                    </Tooltip>
-                )}
-                {showDeleteAction && onDelete && row.original && (
-                    <Tooltip title="Elimina">
-                        <IconButton
-                            size="small"
-                            onClick={() => onDelete(row.original)}
-                            className="text-black/80 hover:bg-black/10"
-                        >
-                            <DeleteIcon fontSize="small" />
-                        </IconButton>
-                    </Tooltip>
-                )}
-            </div>
-        ),
+        Cell: ({ row }) => {
+            // Check if actions should be enabled for this row
+            // TODO: Fix error on line below
+            const isActionEnabled = isRowActionEnabled(row.original);
+            if (!isActionEnabled) return null; // Don't show actions for this row
+
+            return (
+                <div className="flex gap-1">
+                    {showViewAction && onView && row.original && (
+                        <Tooltip title="Visualizza">
+                            <IconButton
+                                size="small"
+                                onClick={() => onView(row.original)}
+                                className="text-black/80 hover:bg-black/10"
+                            >
+                                <VisibilityIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                    )}
+                    {showEditAction && onEdit && row.original && (
+                        <Tooltip title="Modifica">
+                            <IconButton
+                                size="small"
+                                onClick={() => onEdit(row.original)}
+                                className="text-black/80 hover:bg-black/10"
+                            >
+                                <EditIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                    )}
+                    {showDeleteAction && onDelete && row.original && (
+                        <Tooltip title="Elimina">
+                            <IconButton
+                                size="small"
+                                onClick={() => onDelete(row.original)}
+                                className="text-black/80 hover:bg-black/10"
+                            >
+                                <DeleteIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                    )}
+                </div>
+            );
+        },
     };
 
     const finalColumns = enableRowActions
@@ -176,6 +256,7 @@ function ContentTable<T extends MRT_RowData>({
                 data={data}
                 manualPagination
                 manualFiltering
+                manualSorting
                 getRowId={getRowId}
                 rowCount={rowCount}
                 enableRowSelection={enableRowSelection}
@@ -188,6 +269,26 @@ function ContentTable<T extends MRT_RowData>({
                     const newPagination =
                         typeof updaterOrValue === 'function' ? updaterOrValue(pagination) : updaterOrValue;
                     onPaginationChange(newPagination);
+                }}
+                onSortingChange={(updaterOrValue) => {
+                    const newSorting =
+                        typeof updaterOrValue === 'function' ? updaterOrValue(sorting) : updaterOrValue;
+                    onSortingChange?.(newSorting);
+                }}
+                onColumnOrderChange={(updaterOrValue) => {
+                    const newColumnOrder =
+                        typeof updaterOrValue === 'function' ? updaterOrValue(columnOrder) : updaterOrValue;
+                    onColumnOrderChange?.(newColumnOrder);
+                }}
+                onColumnVisibilityChange={(updaterOrValue) => {
+                    const newColumnVisibility =
+                        typeof updaterOrValue === 'function' ? updaterOrValue(columnVisibility) : updaterOrValue;
+                    onColumnVisibilityChange?.(newColumnVisibility);
+                }}
+                onColumnPinningChange={(updaterOrValue) => {
+                    const newColumnPinning =
+                        typeof updaterOrValue === 'function' ? updaterOrValue(columnPinning) : updaterOrValue;
+                    onColumnPinningChange?.(newColumnPinning);
                 }}
                 onGlobalFilterChange={(updaterOrValue) => {
                     const newFilter =
@@ -203,6 +304,10 @@ function ContentTable<T extends MRT_RowData>({
                     isLoading,
                     pagination,
                     rowSelection,
+                    sorting,
+                    columnOrder,
+                    columnVisibility,
+                    columnPinning,
                     showProgressBars: isFetching,
                     globalFilter,
                     showGlobalFilter,
@@ -217,7 +322,7 @@ function ContentTable<T extends MRT_RowData>({
                     }) : {};
 
                     return {
-                        ...baseProps, // This ensures onClick and other props are passed through
+                        ...baseProps,
                         style: {
                             ...(baseProps.style || {}),
                             backgroundColor: isSelected ? 'rgba(0, 0, 0, 0.08) !important' : 'transparent',
@@ -227,6 +332,7 @@ function ContentTable<T extends MRT_RowData>({
                         onMouseEnter: baseProps.onMouseEnter,
                         onMouseLeave: baseProps.onMouseLeave,
                         sx: {
+                            // TODO: Get rid of @ts-expect-error with better logic
                             // eslint-disable-next-line @typescript-eslint/ban-ts-comment
                             // @ts-ignore
                             ...baseProps.sx,
@@ -264,6 +370,8 @@ function ContentTable<T extends MRT_RowData>({
                     }
                 }}
                 muiTableContainerProps={{
+                    ref: tableContainerRef,
+                    onScroll: handleScroll,
                     sx: {
                         flexGrow: 1,
                         overflow: 'auto'
@@ -356,6 +464,7 @@ function ContentTable<T extends MRT_RowData>({
                     columnActions: 'Azioni colonna',
                     copiedToClipboard: 'Copiato negli appunti',
                     dropToGroupBy: 'Rilascia per raggruppare per {column}',
+                    // TODO: Get rid of @ts-expect-error with better logic
                     // @ts-expect-error Unknown Property
                     filter: 'Filtro',
                     filterByColumn: 'Filtra per {column}',

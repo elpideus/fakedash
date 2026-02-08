@@ -1,124 +1,89 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link, useSearchParams, useLocation } from 'react-router-dom';
-
-// External libraries
-import axios from "axios";
-import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { MRT_ColumnDef, MRT_PaginationState, MRT_Row, MRT_RowSelectionState } from "material-react-table";
-
-// Material-UI components
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
-import SaveIcon from '@mui/icons-material/Save';
-import CancelIcon from '@mui/icons-material/Cancel';
-import DownloadIcon from '@mui/icons-material/Download';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import {
-  IconButton,
   TextField,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogContentText,
-  DialogActions,
   Button,
-  CircularProgress,
+  IconButton,
+  Tooltip,
   Alert,
-  Snackbar,
-  Tooltip
+  Snackbar
 } from '@mui/material';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import DownloadIcon from '@mui/icons-material/Download';
+import type { MRT_ColumnDef, MRT_Row } from "material-react-table";
 
-// Local/relative imports
-import { PrimaryButton, SecondaryButton } from "../components/Buttons.tsx";
+// Import shared components and hooks
+import { useDashAPI } from '../context/APIContext.tsx';
+import { useNavigationHelpers } from '../hooks/useNavigationHelpers.ts';
+import { useDeleteConfirmation, useBulkDeleteConfirmation } from '../hooks/useDeleteConfirmation.ts';
+import { useTableOperations } from '../hooks/useTableOperations.ts';
+import { formatDate } from '../utils/dateUtils.ts';
+import { validateUser } from '../utils/validationUtils.ts';
+import { useAuth } from "../store/authStore.ts";
+
+import LoadingState from "../components/common/LoadingState.tsx";
+import ErrorState from "../components/common/ErrorState.tsx";
+import ConfirmationDialog from "../components/common/ConfirmationDialog.tsx";
+import HeaderActions from "../components/common/HeaderActions.tsx";
 import ContentTable from "../components/ContentTable.tsx";
-import { useTableStore } from "../hooks/useTableStore.ts";
-import formatDate from "../utils/formatDate.ts";
+import { SecondaryButton } from "../components/common/Buttons.tsx";
+import DeleteIcon from "@mui/icons-material/Delete";
 
-/** Interface defining the User data structure */
-interface User {
+// Interfaces
+interface Post {
   id: string | number;
-  name: string;
-  email: string;
-}
-
-/** Interface defining the Post data structure */
-interface PostStruct {
-  id: string | number;
-  userId: string | number;
   title: string;
   content: string;
   createdAt: string;
 }
 
+interface EditedUserState {
+  id: string;
+  name: string;
+  email: string;
+}
+
 function UserDetails() {
-  /** Get the user ID from URL parameters */
   const { userId } = useParams<{ userId: string }>();
-  /** Used for routing */
-  const navigate = useNavigate();
-  /** Store search parameters */
-  const [searchParams, setSearchParams] = useSearchParams();
-  /** Get current location for 'from' parameter */
-  const location = useLocation();
-  /** Get the 'from' parameter from URL to know where to go back */
-  const from = searchParams.get('from') || '/users';
-  /** We use TanStack Query for querying the data */
-  const queryClient = useQueryClient();
+  const { api, isLoading: apiLoading, error: apiError, refreshTrigger } = useDashAPI();
+  const navigation = useNavigationHelpers();
+  const { isAuthenticated, isOwner } = useAuth(); // Add this
 
-  // Decode the from parameter
-  const decodedFrom = from ? decodeURIComponent(from) : '/users';
+  // User and Posts state - use refreshTrigger to get fresh data
+  const user = userId ? api.getUser(userId) : null;
+  const userPosts = useMemo(() => user?.posts || [], [user, refreshTrigger]);
 
-  /** Zustand store for table state */
-  const {
-    userDetailsTable,
-    setUserDetailsTablePagination,
-    setUserDetailsTableGlobalFilter,
-    setUserDetailsTableShowGlobalFilter,
-    setUserDetailsTableSelection
-  } = useTableStore();
+  // Check if current user can edit/delete this user
+  const canEditDelete = isAuthenticated && user && isOwner(user.id);
 
-  /** Initialize pagination from Zustand store */
-  const [pagination, setPagination] = useState<MRT_PaginationState>(
-      userDetailsTable.pagination
-  );
+  // Edit state from URL
+  const [isEditing, setIsEditing] = useState(false);
+  const [initialized, setInitialized] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false); // Track if we're in the process of deleting
 
-  /** Stores the row selection */
-  const rowSelection = userDetailsTable.rowSelection || {};
-  const setRowSelection = (
-      updater: MRT_RowSelectionState | ((old: MRT_RowSelectionState) => MRT_RowSelectionState)
-  ) => {
-    const nextState = typeof updater === 'function' ? updater(rowSelection) : updater;
-    setUserDetailsTableSelection(nextState);
-  };
+  // Initialize isEditing from URL on component mount
+  useEffect(() => {
+    const editParam = navigation.searchParams.get('edit');
+    setIsEditing(editParam === 'true');
+  }, [navigation.searchParams]);
 
-  /** Initialize global filter from URL param 'q' if present, otherwise from Zustand store */
-  const [globalFilter, setGlobalFilter] = useState(() => {
-    const urlQ = searchParams.get('q');
-    return urlQ !== null ? urlQ : userDetailsTable.globalFilter;
-  });
+  // Form state
+  const [editedUser, setEditedUser] = useState<EditedUserState | null>(null);
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
-  /** Set the table searchbar to the current query parameter's value */
-  const [showGlobalFilter, setShowGlobalFilter] = useState(() => {
-    const urlQ = searchParams.get('q');
-    return urlQ !== null || userDetailsTable.showGlobalFilter;
-  });
+  // Initialize editedUser when user changes
+  useEffect(() => {
+    if (user) {
+      setEditedUser({
+        id: String(user.id),
+        name: user.name,
+        email: user.email
+      });
+      setInitialized(true);
+    }
+  }, [user]);
 
-  /** Check if edit mode should be activated from URL */
-  const shouldActivateEditMode = searchParams.get('edit') === 'true';
-
-  /** State that determines if the user is being edited or not */
-  const [isEditing, setIsEditing] = useState(shouldActivateEditMode);
-  /** State containing the edited contents of the user */
-  const [editedUser, setEditedUser] = useState<User | null>(null);
-  /** Deleting user state */
-  const [isDeleting, setIsDeleting] = useState(false);
-  /** State for delete confirmation dialog */
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  /** State for bulk delete confirmation dialog */
-  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
-  /** Keep track which post IDs are selected for bulk delete */
-  const [selectedPostIds, setSelectedPostIds] = useState<(string | number)[]>([]);
-
-  /** Initialize data for a snackbar (notification) */
+  // Snackbar state
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
     message: string;
@@ -129,239 +94,184 @@ function UserDetails() {
     severity: 'success'
   });
 
-  /** Update URL when global filter changes */
-  useEffect(() => {
-    if (globalFilter) {
-      searchParams.set('q', globalFilter);
-    } else {
-      searchParams.delete('q');
-    }
-    setSearchParams(searchParams, { replace: true });
-  }, [globalFilter, searchParams, setSearchParams]);
-
-  /** Save pagination to Zustand store whenever it changes */
-  useEffect(() => {
-    setUserDetailsTablePagination(pagination);
-  }, [pagination, setUserDetailsTablePagination]);
-
-  /** Save global filter to Zustand store whenever it changes */
-  useEffect(() => {
-    setUserDetailsTableGlobalFilter(globalFilter);
-  }, [globalFilter, setUserDetailsTableGlobalFilter]);
-
-  /** Save showGlobalFilter to Zustand store whenever it changes */
-  useEffect(() => {
-    setUserDetailsTableShowGlobalFilter(showGlobalFilter);
-  }, [showGlobalFilter, setUserDetailsTableShowGlobalFilter]);
-
-  /** Fetches user data from API */
-  const { data: user, isLoading: userLoading, isError: userError } = useQuery<User>({
-    queryKey: ['user', userId],
-    queryFn: async () => {
-      const res = await axios.get(
-          `${import.meta.env.VITE_API_URL || 'http://localhost'}${import.meta.env.VITE_API_PORT ? `:${import.meta.env.VITE_API_PORT}` : ''}/users?id=${userId}`
-      );
-      const userData = res.data[0];
-      setEditedUser(userData); /** Initialize edit state with the user's data */
-      return userData;
-    },
-    enabled: !!userId,
+  // Table operations
+  const tableOps = useTableOperations({
+    initialPagination: { pageIndex: 0, pageSize: 10 },
+    syncWithUrl: true,
+    searchParamKey: 'q'
   });
 
-  /** Fetches posts for this user with proper pagination and filtering */
-  const { data: postsData, isLoading: postsLoading, isError: postsError, isFetching } = useQuery<{
-    posts: PostStruct[];
-    totalCount: number;
-  }>({
-    queryKey: ['user-posts', userId, pagination.pageIndex, pagination.pageSize, globalFilter],
-    queryFn: async ({ queryKey }) => {
-      const [, , pageIndex, pageSize, filter] = queryKey as [string, string | undefined, number, number, string];
+  // Delete confirmations - only if user is owner
+  const userDeleteConfirmation = useDeleteConfirmation({
+    onConfirm: async () => {
+      setIsDeleting(true); // Set deleting flag
+      if (user) {
+        try {
+          await user.delete();
+          setSnackbar({
+            open: true,
+            message: 'Utente eliminato con successo',
+            severity: 'success'
+          });
+          setTimeout(() => {
+            navigation.navigateBack('/users');
+          }, 1000);
+        } catch (error) {
+          console.error('Error deleting user:', error);
+          setIsDeleting(false); // Reset on error
+        }
+      }
+    },
+    title: 'Conferma eliminazione utente',
+    message: `Sei sicuro di voler eliminare l'utente "${user?.name}"? Tutti i post associati a questo utente verranno eliminati. Questa azione non può essere annullata.`
+  });
 
-      // First get all posts for this user
-      const allPostsResponse = await axios.get(
-          `${import.meta.env.VITE_API_URL || 'http://localhost'}${import.meta.env.VITE_API_PORT ? `:${import.meta.env.VITE_API_PORT}` : ''}/posts?userId=${userId}`
-      );
-      let allPosts = allPostsResponse.data as PostStruct[];
-
-      // Apply global filter if present
-      if (filter) {
-        const searchLower = filter.toLowerCase();
-        allPosts = allPosts.filter((post: PostStruct) => {
-          return (
-              post.title.toLowerCase().includes(searchLower) ||
-              post.content.toLowerCase().includes(searchLower) ||
-              String(post.id).toLowerCase().includes(searchLower)
-          );
+  const bulkDeleteConfirmation = useBulkDeleteConfirmation({
+    onConfirm: async () => {
+      const selectedIds = Object.keys(tableOps.rowSelection);
+      try {
+        const deletePromises = selectedIds.map(id => {
+          const post = api.getPost(id);
+          // Check if user owns this post before deleting
+          if (post && canEditDelete && String(post.userId) === String(user?.id)) {
+            return post?.delete() || Promise.resolve();
+          }
+          return Promise.resolve();
+        });
+        await Promise.all(deletePromises);
+        tableOps.setRowSelection({});
+        setSnackbar({
+          open: true,
+          message: `${selectedIds.length} post eliminati con successo`,
+          severity: 'success'
+        });
+      } catch (error) {
+        console.error('Error deleting posts:', error);
+        setSnackbar({
+          open: true,
+          message: 'Errore nell\'eliminazione dei post',
+          severity: 'error'
         });
       }
-
-      const totalCount = allPosts.length;
-      const startIndex = pageIndex * pageSize;
-      const endIndex = startIndex + pageSize;
-      const paginatedPosts = allPosts.slice(startIndex, endIndex);
-
-      return {
-        posts: paginatedPosts,
-        totalCount: totalCount,
-      };
     },
-    placeholderData: keepPreviousData,
-    enabled: !!userId && !!user,
+    count: tableOps.selectedCount,
+    itemName: 'post'
   });
 
-  /** Remove edit parameter from URL when leaving edit mode */
-  const handleCancelEdit = () => {
-    setEditedUser(user || null);
+  // Handlers
+  const handleEditStart = useCallback(() => {
+    if (canEditDelete) {
+      navigation.updateSearchParams({ edit: 'true' });
+      setIsEditing(true);
+    }
+  }, [navigation, canEditDelete]);
+
+  const handleEditCancel = useCallback(() => {
+    setValidationErrors([]);
+    if (user) {
+      setEditedUser({
+        id: String(user.id),
+        name: user.name,
+        email: user.email
+      });
+    }
+    navigation.updateSearchParams({ edit: null });
     setIsEditing(false);
+  }, [user, navigation]);
 
-    // Remove edit parameter from URL
-    if (searchParams.has('edit')) {
-      searchParams.delete('edit');
-      setSearchParams(searchParams, { replace: true });
-    }
-  };
+  const handleSaveUser = useCallback(async () => {
+    if (!editedUser || !user) return;
 
-  /** Handle entering edit mode */
-  const handleEditStart = () => {
-    setIsEditing(true);
-
-    // Add edit parameter to URL
-    if (!searchParams.has('edit')) {
-      searchParams.set('edit', 'true');
-      setSearchParams(searchParams, { replace: true });
-    }
-  };
-
-  /** Handle global filter change - reset to first page when searching */
-  const handleGlobalFilterChange = (filter: string) => {
-    setGlobalFilter(filter);
-    setPagination(prev => ({ ...prev, pageIndex: 0 }));
-  };
-
-  /** Handle single post delete click */
-  const handleDeletePostClick = (post: PostStruct) => {
-    setSelectedPostIds([post.id]);
-    setBulkDeleteDialogOpen(true);
-  };
-
-  /** Handle bulk delete click for posts */
-  const handleBulkDeleteClick = () => {
-    const selectedIds = Object.keys(rowSelection);
-    if (selectedIds.length === 0) return;
-    setSelectedPostIds(selectedIds);
-    setBulkDeleteDialogOpen(true);
-  };
-
-  /** Handle user delete click */
-  const handleDeleteUserClick = () => {
-    setDeleteDialogOpen(true);
-  };
-
-  /** Handle user delete confirmation */
-  const handleDeleteUser = async () => {
-    setDeleteDialogOpen(false);
-    setIsDeleting(true);
-
-    try {
-      // TODO: Call API to actually remove the user
-      // await axios.delete(`${import.meta.env.VITE_API_URL}${import.meta.env.VITE_API_PORT ? `:${import.meta.env.VITE_API_PORT}` : ''}/users/${userId}`);
-
-      // Invalidate relevant queries
-      await queryClient.invalidateQueries({ queryKey: ['users'] });
-      await queryClient.invalidateQueries({ queryKey: ['users-list'] });
-      await queryClient.invalidateQueries({ queryKey: ['user', userId] });
-
-      setSnackbar({ open: true, message: `Utente eliminato`, severity: 'success' });
-
-      // Redirect to users list after a delay
-      setTimeout(() => {
-        navigate(from);
-      }, 1000);
-    } catch {
-      setSnackbar({ open: true, message: `Errore nell'eliminazione dell'utente`, severity: 'error' });
-      setIsDeleting(false);
-    }
-  };
-
-  /** Handle bulk delete confirmation for posts */
-  const handleBulkDeletePosts = async () => {
-    setBulkDeleteDialogOpen(false);
-    if (selectedPostIds.length === 0) return;
-
-    try {
-      // TODO: Call API to actually remove the posts
-      // await Promise.all(selectedPostIds.map(id =>
-      //     axios.delete(`${import.meta.env.VITE_API_URL}${import.meta.env.VITE_API_PORT ? `:${import.meta.env.VITE_API_PORT}` : ''}/posts/${id}`)
-      // ));
-
-      setRowSelection({});
-      await queryClient.invalidateQueries({ queryKey: ['user-posts', userId] });
-      await queryClient.invalidateQueries({ queryKey: ['posts'] });
-
+    const errors = validateUser(editedUser);
+    if (errors.length > 0) {
+      setValidationErrors(errors);
       setSnackbar({
         open: true,
-        message: `${selectedPostIds.length} post eliminati`,
-        severity: 'success'
+        message: 'Correggi gli errori nel form',
+        severity: 'error'
       });
-    } catch {
-      setSnackbar({ open: true, message: `Errore nell'eliminazione dei post`, severity: 'error' });
+      return;
     }
-    setSelectedPostIds([]);
-  };
-
-  /** Handle saving user edits */
-  const handleSaveUser = async () => {
-    if (!editedUser) return;
 
     try {
-      // TODO: Call API to update the user
-      // await axios.put(`${import.meta.env.VITE_API_URL}${import.meta.env.VITE_API_PORT ? `:${import.meta.env.VITE_API_PORT}` : ''}/users/${userId}`, editedUser);
+      // Update user properties
+      Object.assign(user, {
+        name: editedUser.name,
+        email: editedUser.email
+      });
+      await user.save();
 
-      // Update cache with edited user
-      queryClient.setQueryData(['user', userId], editedUser);
-
-      // Also update in users list cache
-      await queryClient.invalidateQueries({ queryKey: ['users-list'] });
-
+      setValidationErrors([]);
+      navigation.updateSearchParams({ edit: null });
       setIsEditing(false);
 
-      // Remove edit parameter from URL
-      if (searchParams.has('edit')) {
-        searchParams.delete('edit');
-        setSearchParams(searchParams, { replace: true });
-      }
-
       setSnackbar({
         open: true,
-        message: `Utente aggiornato`,
+        message: 'Utente aggiornato con successo',
         severity: 'success'
       });
-    } catch {
+    } catch (error) {
+      console.error('Error updating user:', error);
       setSnackbar({
         open: true,
-        message: `Errore nell'aggiornamento dell'utente`,
+        message: 'Errore nell\'aggiornamento dell\'utente',
         severity: 'error'
       });
     }
-  };
+  }, [editedUser, user, navigation]);
 
-  /** Handle double-click to enter edit mode */
-  const handleDoubleClick = () => {
-    if (!isEditing) handleEditStart();
-  };
+  const handleDoubleClick = useCallback(() => {
+    if (!isEditing && canEditDelete) handleEditStart();
+  }, [isEditing, handleEditStart, canEditDelete]);
 
-  /** Handle view post */
-  const handleViewPost = (post: PostStruct) => {
-    navigate(`/post/${post.id}?from=${encodeURIComponent(location.pathname + location.search)}`);
-  };
+  // Table logic
+  const tableData = useMemo(() => {
+    if (!userPosts) {
+      return { posts: [], totalCount: 0 };
+    }
 
-  /** Handle edit post - with edit mode enabled */
-  const handleEditPost = (post: PostStruct) => {
-    navigate(`/post/${post.id}?edit=true&from=${encodeURIComponent(location.pathname + location.search)}`);
-  };
+    let filteredPosts = [...userPosts];
 
-  /** Define the columns for the posts table */
-  const columns = React.useMemo<MRT_ColumnDef<PostStruct>[]>(() => [
+    if (tableOps.globalFilter) {
+      const searchLower = tableOps.globalFilter.toLowerCase();
+      filteredPosts = filteredPosts.filter((post: Post) => {
+        return (
+            post.title.toLowerCase().includes(searchLower) ||
+            post.content.toLowerCase().includes(searchLower) ||
+            String(post.id).toLowerCase().includes(searchLower)
+        );
+      });
+    }
+
+    const totalCount = filteredPosts.length;
+    const paginatedPosts = tableOps.applyPagination(filteredPosts);
+
+    return {
+      posts: paginatedPosts,
+      totalCount
+    };
+  }, [userPosts, tableOps]);
+
+  const handleViewPost = useCallback((post: Post) => {
+    navigation.navigateToPost(String(post.id));
+  }, [navigation]);
+
+  const handleEditPost = useCallback((post: Post) => {
+    // Only allow editing if user owns this post
+    if (canEditDelete && String(post.userId) === String(user?.id)) {
+      navigation.navigateToPost(String(post.id), true);
+    }
+  }, [navigation, canEditDelete, user]);
+
+  const handleDeletePost = useCallback((post: Post) => {
+    // Only allow deleting if user owns this post
+    if (canEditDelete && String(post.userId) === String(user?.id)) {
+      tableOps.setRowSelection({ [String(post.id)]: true });
+      bulkDeleteConfirmation.openDialog();
+    }
+  }, [bulkDeleteConfirmation, tableOps, canEditDelete, user]);
+
+  const columns = useMemo<MRT_ColumnDef<Post>[]>(() => [
     {
       accessorKey: 'title',
       header: 'Titolo',
@@ -372,7 +282,7 @@ function UserDetails() {
       header: 'Contenuto',
       size: 400,
       Cell: ({ cell }) => {
-        const content = cell.getValue<string>();
+        const content = cell.getValue<string>() || '';
         const previewLength = 100;
         return content.length > previewLength
             ? `${content.substring(0, previewLength)}...`
@@ -390,44 +300,34 @@ function UserDetails() {
     },
   ], []);
 
-  /** Returns the row props with consistent click behavior and styling */
-  const getRowProps = ({ row }: { row: MRT_Row<PostStruct> }) => ({
+  const getRowProps = useCallback(({ row }: { row: MRT_Row<Post> }) => ({
     onClick: (event: React.MouseEvent) => {
       const target = event.target as HTMLElement;
-      const isActionButton = target.closest('button');
-      const isCheckbox = target.closest('input[type="checkbox"], .MuiCheckbox-root');
-
-      if (!isActionButton && !isCheckbox) {
+      if (!target.closest('button') && !target.closest('input[type="checkbox"], .MuiCheckbox-root')) {
         handleViewPost(row.original);
       }
     },
-    sx: {
-      cursor: 'pointer',
-    },
-  });
+    sx: { cursor: 'pointer' },
+  }), [handleViewPost]);
 
-  const selectedCount = Object.keys(rowSelection).length;
-
-  const renderTopToolbarCustomActions = () => (
+  const renderTopToolbarCustomActions = useCallback(() => (
       <div className="flex gap-4 items-center">
-        {selectedCount > 0 && (
+        {tableOps.selectedCount > 0 && canEditDelete && (
             <Tooltip title="Elimina post selezionati">
               <IconButton
-                  onClick={handleBulkDeleteClick}
+                  onClick={bulkDeleteConfirmation.openDialog}
                   className="bg-red-100 hover:bg-red-200 text-red-600"
               >
                 <DeleteIcon />
               </IconButton>
             </Tooltip>
         )}
-        <SecondaryButton>
-          <DownloadIcon />
-        </SecondaryButton>
+        <SecondaryButton><DownloadIcon /></SecondaryButton>
       </div>
-  );
+  ), [tableOps.selectedCount, bulkDeleteConfirmation, canEditDelete]);
 
-  /** Detail panel for posts */
-  const detailPanel = (post: PostStruct) => {
+  // Detail panel
+  const detailPanel = useCallback((post: Post) => {
     const previewLength = 300;
     const showPreview = post.content.length > previewLength;
     const displayContent = showPreview
@@ -443,332 +343,192 @@ function UserDetails() {
           </div>
           <div className="mb-4">
             <p className="text-sm text-black/60 font-medium">Contenuto</p>
-            <div className="relative">
-              <p className="text-lg text-black/80 leading-relaxed pr-4 whitespace-pre-line">
-                {displayContent}
-              </p>
-              {showPreview && (
-                  <div className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-white to-transparent pointer-events-none"></div>
-              )}
-            </div>
+            <p className="text-lg text-black/80 leading-relaxed pr-4 whitespace-pre-line">{displayContent}</p>
           </div>
-
           {showPreview && (
-              <PrimaryButton
-                  onClick={() => navigate(`/post/${post.id}?from=${encodeURIComponent(location.pathname + location.search)}`)}
-                  className="mt-4 inline-flex items-center gap-1 font-medium text-sm"
+              <Button
+                  variant="contained"
+                  onClick={() => handleViewPost(post)}
+                  className="mt-4 bg-blue-600 hover:bg-blue-700"
               >
                 Leggi di più
-              </PrimaryButton>
+              </Button>
           )}
         </div>
     );
-  };
+  }, [handleViewPost]);
 
-  // Show loading state
-  if (userLoading || isDeleting) {
+  // If we're deleting, show loading state immediately
+  if (isDeleting || userDeleteConfirmation.isDeleting) {
     return (
-        <div className="p-8 h-full flex items-center justify-center">
-          <div className="text-center">
-            <CircularProgress size={60} sx={{ color: "#4a5565" }} />
-            <p className="mt-4 text-gray-600">
-              {isDeleting ? "Eliminazione dell'utente in corso..." : "Caricamento dei dettagli utente..."}
-            </p>
-          </div>
-        </div>
+        <LoadingState
+            message="Eliminazione utente in corso..."
+        />
     );
   }
 
-  // Show error state for user
-  if (userError || !user) {
+  // Loading states - show loading until everything is initialized
+  if (apiLoading || !api.isInitialized || !initialized) {
     return (
-        <div className="p-8 h-full">
-          <div className="mb-6">
-            <Link
-                to={from}  // Changed from "/users" to {from}
-                className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-800"
-            >
-              <ArrowBackIcon /> Torna alla lista utenti
-            </Link>
-          </div>
-          <div className="bg-red-50 border border-red-200 rounded-2xl p-8 text-red-600">
-            <h2 className="text-2xl font-bold mb-4">Errore nel caricamento dell'utente</h2>
-            <p>Impossibile caricare l'utente. Assicurati che il server sia attivo e che l'utente esista.</p>
-            <p className="mt-2 text-sm">User ID: {userId}</p>
-          </div>
-        </div>
+        <LoadingState
+            message="Caricamento..."
+        />
     );
+  }
+
+  // Error states
+  if (apiError) {
+    return (
+        <ErrorState
+            title="Errore"
+            message="Impossibile caricare l'utente."
+            showBackButton={true}
+            onBack={() => navigation.navigateBack()}
+        />
+    );
+  }
+
+  if (!user) {
+    return (
+        <ErrorState
+            title="Utente non trovato"
+            message={`L'utente con ID "${userId}" non esiste.`}
+            showBackButton={true}
+            onBack={() => navigation.navigateBack()}
+        />
+    );
+  }
+
+  if (!editedUser) {
+    return <LoadingState message="Caricamento dettagli utente..." />;
   }
 
   return (
       <div className="p-8 h-full overflow-auto">
-        {/* Back button */}
         <div className="mb-6">
-          <Link
-              to={decodedFrom}
-              className="group inline-flex items-center gap-2 text-gray-600 hover:text-gray-800 transition-all duration-200"
+          <button
+              onClick={navigation.navigateBack}
+              className="flex items-center gap-2 text-gray-600 hover:text-gray-800"
           >
-          <span className="inline-block transition-transform duration-200 group-hover:-translate-x-2 delay-150">
-            <ArrowBackIcon />
-          </span>
-            <span className="group-hover:scale-110 transition-all duration-200">
-            {from === '/users' ? 'Torna alla lista utenti' : 'Torna indietro'}
-          </span>
-          </Link>
+            <ArrowBackIcon /> Torna indietro
+          </button>
         </div>
 
-        {/* Posts table with integrated user info header */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-          {/* Integrated user info header */}
-          <div
-              className="p-6 border-b border-gray-200 flex justify-between items-center"
-              onDoubleClick={handleDoubleClick}
-          >
+          <div className="p-6 border-b flex justify-between items-center" onDoubleClick={handleDoubleClick}>
             <div className="flex-1">
               {isEditing ? (
                   <div className="space-y-4">
                     <TextField
                         fullWidth
-                        value={editedUser?.name || ''}
-                        onChange={(e) => setEditedUser(prev => prev ? { ...prev, name: e.target.value } : null)}
-                        variant="outlined"
+                        value={editedUser.name}
+                        onChange={(e) => setEditedUser({ ...editedUser, name: e.target.value })}
                         label="Nome"
-                        sx={{
-                          '& .MuiOutlinedInput-root': {
-                            fontSize: '1.75rem',
-                            fontWeight: 'bold',
-                          },
-                          '& .MuiInputLabel-root': {
-                            fontSize: '1rem',
-                          }
-                        }}
+                        error={validationErrors.some(err => err.includes('Nome'))}
+                        helperText={validationErrors.find(err => err.includes('Nome'))}
                     />
                     <TextField
                         fullWidth
-                        value={editedUser?.email || ''}
-                        onChange={(e) => setEditedUser(prev => prev ? { ...prev, email: e.target.value } : null)}
-                        variant="outlined"
+                        value={editedUser.email}
+                        onChange={(e) => setEditedUser({ ...editedUser, email: e.target.value })}
                         label="Email"
-                        sx={{
-                          marginTop: "20px",
-
-                          '& .MuiOutlinedInput-root': {
-                            fontSize: '1rem',
-                          },
-                          '& .MuiInputLabel-root': {
-                            fontSize: '0.875rem',
-                          }
-                        }}
+                        error={validationErrors.some(err => err.includes('Email'))}
+                        helperText={validationErrors.find(err => err.includes('Email'))}
                     />
                   </div>
               ) : (
                   <div>
-                    <h1 className="text-3xl font-bold text-gray-800 mb-1">{user?.name || 'Nome non disponibile'}</h1>
-                    <p className="text-gray-600">{user?.email || 'Email non disponibile'}</p>
+                    <h1 className="text-3xl font-bold">{user.name}</h1>
+                    <p className="text-gray-600">{user.email}</p>
+                    <p className="text-sm text-gray-500 mt-2">{userPosts.length} post totali</p>
                   </div>
               )}
             </div>
-
-            {/* Edit/Delete/Save/Cancel buttons */}
             <div className="ml-4">
-              {!isEditing ? (
-                  <div className="flex gap-2">
-                    <IconButton
-                        onClick={handleEditStart}
-                        className="bg-blue-100 hover:bg-blue-200 text-blue-600"
-                        title="Modifica utente"
-                    >
-                      <EditIcon />
-                    </IconButton>
-                    <IconButton
-                        onClick={handleDeleteUserClick}
-                        className="bg-red-100 hover:bg-red-200 text-red-600"
-                        title="Elimina utente"
-                        disabled={isDeleting}
-                    >
-                      <DeleteIcon />
-                    </IconButton>
-                  </div>
-              ) : (
-                  <div className="flex gap-2">
-                    <IconButton
-                        onClick={handleSaveUser}
-                        className="bg-green-100 hover:bg-green-200 text-green-600"
-                        title="Salva modifiche"
-                    >
-                      <SaveIcon />
-                    </IconButton>
-                    <IconButton
-                        onClick={handleCancelEdit}
-                        className="bg-gray-100 hover:bg-gray-200 text-gray-600"
-                        title="Annulla modifiche"
-                    >
-                      <CancelIcon />
-                    </IconButton>
-                  </div>
-              )}
+              <HeaderActions
+                  isEditing={isEditing}
+                  onEdit={handleEditStart}
+                  onSave={handleSaveUser}
+                  onCancel={handleEditCancel}
+                  onDelete={canEditDelete ? userDeleteConfirmation.openDialog : undefined}
+                  isDeleting={userDeleteConfirmation.isDeleting}
+                  disableEdit={!canEditDelete}
+                  disableSave={validationErrors.length > 0}
+                  showDelete={canEditDelete}
+              />
             </div>
           </div>
 
-          {/* Edit hint (only show when not editing) */}
-          {!isEditing && (
-              <div className="px-6 py-2 border-b border-gray-100 bg-gray-50">
-                <p className="text-xs text-gray-500 italic">
-                  Doppio click sul nome o email per attivare la modalità modifica
-                </p>
-              </div>
-          )}
-
-          {/* Posts table */}
-          {postsError ? (
-              <div className="p-8 text-center">
-                <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-600 inline-block">
-                  <p>Impossibile caricare i post. Assicurati che il server sia attivo.</p>
-                </div>
-              </div>
-          ) : (
-              <ContentTable<PostStruct>
-                  columns={columns}
-                  data={postsData?.posts ?? []}
-                  rowCount={postsData?.totalCount ?? 0}
-                  pagination={pagination}
-                  onPaginationChange={setPagination}
-                  isLoading={postsLoading}
-                  isFetching={isFetching}
-                  rowSelection={rowSelection}
-                  onRowSelectionChange={setRowSelection}
-                  getRowId={(row) => String(row.id)}
-                  enableRowSelection={true}
-                  enableRowActions={true}
-                  showViewAction={false}
-                  showEditAction={true}
-                  showDeleteAction={true}
-                  onEdit={handleEditPost}
-                  onDelete={handleDeletePostClick}
-                  onView={handleViewPost}
-                  detailPanel={detailPanel}
-                  muiTableBodyRowProps={getRowProps}
-                  title=""
-                  totalCountText={
-                    postsLoading
-                        ? "Caricamento..."
-                        : globalFilter
-                            ? `${postsData?.totalCount ?? 0} risultati trovati (ricerca: "${globalFilter}")`
-                            : `${postsData?.totalCount ?? 0} post totali`
-                  }
-                  selectedCount={selectedCount}
-                  renderTopToolbarCustomActions={renderTopToolbarCustomActions}
-                  globalFilter={globalFilter}
-                  onGlobalFilterChange={(filter) => {
-                    handleGlobalFilterChange(filter);
-                  }}
-                  showGlobalFilter={showGlobalFilter}
-                  onShowGlobalFilterChange={setShowGlobalFilter}
-              />
-          )}
+          <ContentTable<Post>
+              columns={columns}
+              data={tableData.posts ?? []}
+              rowCount={tableData.totalCount ?? 0}
+              pagination={tableOps.pagination}
+              onPaginationChange={tableOps.setPagination}
+              isLoading={false}
+              isFetching={false}
+              rowSelection={tableOps.rowSelection}
+              onRowSelectionChange={tableOps.setRowSelection}
+              getRowId={(row) => String(row.id)}
+              enableRowSelection={true}
+              enableRowActions={canEditDelete}
+              onEdit={handleEditPost}
+              onDelete={handleDeletePost}
+              onView={handleViewPost}
+              detailPanel={detailPanel}
+              muiTableBodyRowProps={getRowProps}
+              title={`Post di ${user.name}`}
+              selectedCount={tableOps.selectedCount}
+              renderTopToolbarCustomActions={renderTopToolbarCustomActions}
+              globalFilter={tableOps.globalFilter}
+              onGlobalFilterChange={tableOps.setGlobalFilter}
+              showGlobalFilter={tableOps.showGlobalFilter}
+              onShowGlobalFilterChange={tableOps.setShowGlobalFilter}
+              sorting={tableOps.sorting}
+              onSortingChange={tableOps.setSorting}
+              columnOrder={tableOps.columnOrder}
+              onColumnOrderChange={tableOps.setColumnOrder}
+              columnVisibility={tableOps.columnVisibility}
+              onColumnVisibilityChange={tableOps.setColumnVisibility}
+              columnPinning={tableOps.columnPinning}
+              onColumnPinningChange={tableOps.setColumnPinning}
+              scrollPosition={tableOps.scrollPosition}
+              onScrollPositionChange={tableOps.setScrollPosition}
+              tableKey="user-details-posts"
+          />
         </div>
 
-        {/* User Delete Confirmation Dialog */}
-        <Dialog
-            open={deleteDialogOpen}
-            onClose={() => setDeleteDialogOpen(false)}
-            aria-labelledby="delete-user-dialog-title"
-            aria-describedby="delete-user-dialog-description"
-            slotProps={{
-              paper: {
-                sx: {
-                  borderRadius: '16px',
-                  padding: '8px'
-                }
-              }
+        <ConfirmationDialog
+            open={userDeleteConfirmation.isOpen}
+            title={userDeleteConfirmation.dialogConfig.title}
+            message={userDeleteConfirmation.dialogConfig.message}
+            onConfirm={userDeleteConfirmation.handleConfirm}
+            onCancel={() => {
+              userDeleteConfirmation.closeDialog();
+              setIsDeleting(false); // Reset deleting flag if cancelled
             }}
-        >
-          <DialogTitle id="delete-user-dialog-title" className="font-semibold text-xl">
-            Conferma eliminazione utente
-          </DialogTitle>
-          <DialogContent>
-            <DialogContentText id="delete-user-dialog-description" className="text-gray-700">
-              Sei sicuro di voler eliminare l'utente "{user?.name}"?
-              Tutti i post associati a questo utente verranno eliminati.
-              Questa azione non può essere annullata.
-            </DialogContentText>
-          </DialogContent>
-          <DialogActions className="p-6 pt-2">
-            <Button
-                onClick={() => setDeleteDialogOpen(false)}
-                variant="outlined"
-                className="rounded-lg border-gray-300 text-gray-700 hover:bg-gray-50"
-            >
-              Annulla
-            </Button>
-            <Button
-                onClick={handleDeleteUser}
-                variant="contained"
-                color="error"
-                className="rounded-lg bg-red-600 hover:bg-red-700 text-white"
-                autoFocus
-            >
-              Elimina Utente
-            </Button>
-          </DialogActions>
-        </Dialog>
+            confirmText="Elimina Utente"
+            severity="error"
+            isLoading={userDeleteConfirmation.isDeleting}
+        />
 
-        {/* Posts Bulk Delete Confirmation Dialog */}
-        <Dialog
-            open={bulkDeleteDialogOpen}
-            onClose={() => setBulkDeleteDialogOpen(false)}
-            aria-labelledby="bulk-delete-posts-dialog-title"
-            aria-describedby="bulk-delete-posts-dialog-description"
-            slotProps={{
-              paper: {
-                sx: {
-                  borderRadius: '16px',
-                  padding: '8px'
-                }
-              }
-            }}
-        >
-          <DialogTitle id="bulk-delete-posts-dialog-title" className="font-semibold text-xl">
-            Conferma eliminazione post
-          </DialogTitle>
-          <DialogContent>
-            <DialogContentText id="bulk-delete-posts-dialog-description" className="text-gray-700">
-              Sei sicuro di voler eliminare {selectedPostIds.length} post selezionati?
-              Questa azione non può essere annullata.
-            </DialogContentText>
-          </DialogContent>
-          <DialogActions className="p-6 pt-2">
-            <Button
-                onClick={() => setBulkDeleteDialogOpen(false)}
-                variant="outlined"
-                className="rounded-lg border-gray-300 text-gray-700 hover:bg-gray-50"
-            >
-              Annulla
-            </Button>
-            <Button
-                onClick={handleBulkDeletePosts}
-                variant="contained"
-                color="error"
-                className="rounded-lg bg-red-600 hover:bg-red-700 text-white"
-                autoFocus
-            >
-              Elimina {selectedPostIds.length} post
-            </Button>
-          </DialogActions>
-        </Dialog>
+        <ConfirmationDialog
+            open={bulkDeleteConfirmation.isOpen}
+            title={bulkDeleteConfirmation.dialogConfig.title}
+            message={bulkDeleteConfirmation.dialogConfig.message}
+            onConfirm={bulkDeleteConfirmation.handleConfirm}
+            onCancel={bulkDeleteConfirmation.closeDialog}
+            confirmText={`Elimina ${tableOps.selectedCount} post`}
+            severity="error"
+            isLoading={bulkDeleteConfirmation.isDeleting}
+        />
 
-        {/* Snackbar for notifications */}
         <Snackbar
             open={snackbar.open}
             autoHideDuration={3000}
             onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
-            anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
         >
-          <Alert
-              severity={snackbar.severity}
-              onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
-              className="shadow-lg"
-          >
+          <Alert severity={snackbar.severity} onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}>
             {snackbar.message}
           </Alert>
         </Snackbar>

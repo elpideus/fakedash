@@ -1,8 +1,10 @@
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import PersonIcon from '@mui/icons-material/Person';
+import LogoutIcon from '@mui/icons-material/Logout';
 import NavElement from './NavElement';
 import {useLocation, useNavigate} from "react-router-dom";
 import React, { useEffect, useState, useRef } from 'react';
+import { useAuth } from '../../store/authStore.ts';
 
 interface SidebarProps {
     onNavClick?: (id: number) => void,
@@ -12,7 +14,8 @@ interface SidebarProps {
 function Sidebar({onNavClick}: SidebarProps) {
     const location = useLocation();
     const navigate = useNavigate();
-    const animationTimeoutRef = useRef<NodeJS.Timeout>();
+    const { user, logout } = useAuth();
+    const animationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const prevIsDetailPageRef = useRef(false);
     const prevActiveIndexRef = useRef(-1);
 
@@ -31,7 +34,6 @@ function Sidebar({onNavClick}: SidebarProps) {
         },
     ];
 
-    // Check if we're on a detail page (post or user details)
     const isDetailPage = location.pathname.startsWith('/post/') ||
         location.pathname.startsWith('/user/');
 
@@ -43,7 +45,6 @@ function Sidebar({onNavClick}: SidebarProps) {
 
     const safeActiveIndex = activeItem === -1 ? 0 : activeItem;
 
-    // State to control selection background animation
     const [selectionStyle, setSelectionStyle] = useState({
         top: `${safeActiveIndex * 64}px`,
         left: isDetailPage ? '-100%' : '0',
@@ -51,15 +52,12 @@ function Sidebar({onNavClick}: SidebarProps) {
         transition: 'transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 300ms ease-out'
     });
 
-    // Store transform values separately for GPU acceleration
     const [transform, setTransform] = useState({
         translateX: isDetailPage ? '-100%' : '0%',
         translateY: `${safeActiveIndex * 64}px`
     });
 
-    // Effect to handle animations when route changes
     useEffect(() => {
-        // Clear any pending timeout
         if (animationTimeoutRef.current) {
             clearTimeout(animationTimeoutRef.current);
         }
@@ -69,74 +67,48 @@ function Sidebar({onNavClick}: SidebarProps) {
             prevActiveIndexRef.current !== -1 &&
             prevActiveIndexRef.current !== safeActiveIndex;
 
-        // Prepare for animation - enable GPU acceleration
-        setSelectionStyle(prev => ({
-            ...prev,
-            transition: 'transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 300ms ease-out'
-        }));
+        requestAnimationFrame(() => {
+            setSelectionStyle(prev => ({
+                ...prev,
+                transition: 'transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 300ms ease-out'
+            }));
 
-        if (isDetailPage && !prevIsDetailPage) {
-            // When entering detail page from list page, slide out
-            requestAnimationFrame(() => {
+            if (isDetailPage && !prevIsDetailPage) {
                 setTransform({
                     translateX: '-100%',
                     translateY: `${prevActiveIndexRef.current * 64}px`
                 });
-                setSelectionStyle(prev => ({
-                    ...prev,
-                    opacity: 0
-                }));
-            });
-        } else if (!isDetailPage && prevIsDetailPage) {
-            // When exiting detail page to list page, slide in
-            // First set off-screen
-            setTransform({
-                translateX: '-100%',
-                translateY: `${safeActiveIndex * 64}px`
-            });
-            setSelectionStyle(prev => ({
-                ...prev,
-                opacity: 0
-            }));
-
-            // Then animate in on next frame
-            animationTimeoutRef.current = setTimeout(() => {
-                requestAnimationFrame(() => {
-                    setTransform({
-                        translateX: '0%',
-                        translateY: `${safeActiveIndex * 64}px`
-                    });
-                    setSelectionStyle(prev => ({
-                        ...prev,
-                        opacity: 1
-                    }));
+                setSelectionStyle(prev => ({ ...prev, opacity: 0 }));
+            } else if (!isDetailPage && prevIsDetailPage) {
+                setTransform({
+                    translateX: '-100%',
+                    translateY: `${safeActiveIndex * 64}px`
                 });
-            }, 10);
-        } else if (isSwitchingListPages) {
-            // When switching between list pages (Posts <-> Users)
-            // Animate vertical movement only
-            requestAnimationFrame(() => {
-                setTransform(prev => ({
-                    ...prev,
-                    translateY: `${safeActiveIndex * 64}px`,
-                    translateX: '0%'
-                }));
-            });
-        } else if (!isDetailPage) {
-            // Initial load on list page or direct navigation
-            requestAnimationFrame(() => {
+                setSelectionStyle(prev => ({ ...prev, opacity: 0 }));
+
+                animationTimeoutRef.current = window.setTimeout(() => {
+                    requestAnimationFrame(() => {
+                        setTransform({
+                            translateX: '0%',
+                            translateY: `${safeActiveIndex * 64}px`
+                        });
+                        setSelectionStyle(prev => ({ ...prev, opacity: 1 }));
+                    });
+                }, 10);
+            } else if (isSwitchingListPages) {
                 setTransform({
                     translateX: '0%',
                     translateY: `${safeActiveIndex * 64}px`
                 });
-                setSelectionStyle(prev => ({
-                    ...prev,
-                    opacity: 1
-                }));
-            });
-        }
+            } else if (!isDetailPage) {
+                setTransform({
+                    translateX: '0%',
+                    translateY: `${safeActiveIndex * 64}px`
+                });
+                setSelectionStyle(prev => ({ ...prev, opacity: 1 }));
+            }
+        });
 
-        // Update refs for next comparison
         prevIsDetailPageRef.current = isDetailPage;
         if (!isDetailPage) {
             prevActiveIndexRef.current = safeActiveIndex;
@@ -150,14 +122,17 @@ function Sidebar({onNavClick}: SidebarProps) {
     }, [isDetailPage, safeActiveIndex]);
 
     const handleNavigation = (id: number, path: string) => {
-        // Navigate immediately but don't wait for content to load
         navigate(path);
         if (onNavClick) {
-            // Use requestAnimationFrame to ensure animation runs before heavy content loads
             requestAnimationFrame(() => {
                 onNavClick(id);
             });
         }
+    };
+
+    const handleLogout = () => {
+        logout();
+        navigate('/login');
     };
 
     return (
@@ -167,7 +142,6 @@ function Sidebar({onNavClick}: SidebarProps) {
             </div>
 
             <nav className="flex-1 relative overflow-y-auto overflow-x-hidden">
-                {/* Selection background with GPU-accelerated animation */}
                 <div
                     className="absolute left-0 w-[80%] bg-[#F1F1F1] rounded-tr-2xl rounded-br-2xl"
                     style={{
@@ -176,9 +150,9 @@ function Sidebar({onNavClick}: SidebarProps) {
                         opacity: selectionStyle.opacity,
                         transition: selectionStyle.transition,
                         zIndex: 0,
-                        willChange: 'transform, opacity', // Hint to browser for GPU acceleration
-                        backfaceVisibility: 'hidden', // Additional GPU optimization
-                        WebkitFontSmoothing: 'subpixel-antialiased', // Better text rendering
+                        willChange: 'transform, opacity',
+                        backfaceVisibility: 'hidden',
+                        WebkitFontSmoothing: 'subpixel-antialiased',
                     }}
                 />
                 <ul className="flex flex-col list-none p-0 m-0">
@@ -196,18 +170,23 @@ function Sidebar({onNavClick}: SidebarProps) {
             </nav>
 
             <div className="mt-4 mx-4 p-4 flex gap-2 bg-black/5 rounded-2xl flex-shrink-0">
-                <div
-                    className="profile-picture rounded-full bg-black/10 min-w-12 min-h-12 w-12 h-12 flex justify-center items-center">
+                <div className="profile-picture rounded-full bg-black/10 min-w-12 min-h-12 w-12 h-12 flex justify-center items-center">
                     <PersonIcon style={{fontSize: "2.5rem", color: "black", opacity: .5}}/>
                 </div>
-                <div className="h-12 flex flex-col truncate">
-                    <div className="truncate font-semibold">Admin User</div>
-                    <div className="text-sm text-red-700 cursor-pointer" onClick={() => navigate('/login')}>Logout</div>
+                <div className="h-12 flex flex-col truncate flex-1">
+                    <div className="truncate font-semibold">{user?.name || 'Admin User'}</div>
+                    <div className="text-sm text-gray-500 truncate">{user?.email || 'admin@example.com'}</div>
                 </div>
+                <button
+                    onClick={handleLogout}
+                    className="text-red-600 hover:text-red-800 p-2 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"
+                    title="Logout"
+                >
+                    <LogoutIcon />
+                </button>
             </div>
         </aside>
     );
 }
 
-// Export memoized component to prevent unnecessary re-renders
 export default React.memo(Sidebar);

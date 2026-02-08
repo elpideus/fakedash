@@ -1,270 +1,215 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
-
-// External libraries
-import axios from "axios";
-import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
-import type {MRT_ColumnDef, MRT_PaginationState, MRT_Row, MRT_RowSelectionState} from "material-react-table";
-
-// Material-UI components
+import React, { useMemo, useCallback } from 'react';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import DownloadIcon from '@mui/icons-material/Download';
-import { Alert, Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, IconButton, Snackbar, Tooltip } from '@mui/material';
+import { IconButton, Tooltip, Alert, Snackbar } from '@mui/material';
+import type {MRT_ColumnDef} from 'material-react-table';
 
-// Local/relative imports
-import { PrimaryButton, SecondaryButton } from "./Buttons.tsx";
-import ContentTable from './ContentTable.tsx';
-import { useTableStore } from '../hooks/useTableStore.ts';
-import formatDate from "../utils/formatDate.ts";
+// Import shared components and hooks
+import { useDashAPI } from '../context/APIContext.tsx';
+import { useNavigationHelpers } from '../hooks/useNavigationHelpers.ts';
+import { useDeleteConfirmation, useBulkDeleteConfirmation } from '../hooks/useDeleteConfirmation.ts';
+import { useTableOperations } from '../hooks/useTableOperations.ts';
+import { formatDate } from '../utils/dateUtils.ts';
+import { useAuth } from "../store/authStore.ts"; // Add this import
 
-/** Defines the User data structure used by this component */
-interface User {
-    id: string | number;
-    name: string;
+import ConfirmationDialog from "./common/ConfirmationDialog.tsx";
+import ContentTable from "./ContentTable.tsx";
+import { PrimaryButton, SecondaryButton } from "./common/Buttons.tsx";
+
+
+interface PostListContentProps {
+    pagination: { pageIndex: number; pageSize: number };
+    onPaginationChange: (pagination: { pageIndex: number; pageSize: number }) => void;
+    isPostDetailPage?: boolean;
 }
 
-/** I had to call it like this so that it doesn't get confused with the Post route. It is not really a Struct though. */
-interface PostStruct {
+interface Post {
     id: string | number;
-    userId: string | number;
     title: string;
     content: string;
+    author?: { name: string };
+    userId: number;
     createdAt: string;
+    delete?: () => Promise<void>;
 }
 
-/** Defines the properties used by the component */
-interface PostListContentProps {
-    pagination: MRT_PaginationState;
-    onPaginationChange: (pagination: MRT_PaginationState) => void;
-    isPostDetailPage: boolean;
-}
+function PostListContent({ pagination, onPaginationChange }: PostListContentProps) {
+    const { api, isLoading: apiLoading, error: apiError, refreshTrigger } = useDashAPI();
+    const navigation = useNavigationHelpers();
+    const { isAuthenticated, isOwner } = useAuth(); // Add this
 
-function PostListContent({ pagination, onPaginationChange, isPostDetailPage }: PostListContentProps) {
-    /** Using React Router */
-    const navigate = useNavigate();
-    /** Get current location to pass as 'from' parameter */
-    const location = useLocation();
-    /** Store search parameters */
-    const [searchParams, setSearchParams] = useSearchParams();
-    /** Using TanStack Query for better querying */
-    const queryClient = useQueryClient();
-
-    /** Zustand store for table state */
-    const {
-        postTable,
-        setPostTablePagination,
-        setPostTableGlobalFilter,
-        setPostTableShowGlobalFilter,
-        setPostTableSelection
-    } = useTableStore();
-
-    /** Keep track of which MRT rows are currently selected. */
-    const rowSelection = postTable.rowSelection || {};
-    const setRowSelection = (updater: MRT_RowSelectionState | ((old: MRT_RowSelectionState) => MRT_RowSelectionState)) => {
-        const nextState = typeof updater === 'function' ? updater(rowSelection) : updater;
-        setPostTableSelection(nextState);
-    };
-
-    /** Initialize global filter from URL param 'q' if present, otherwise from Zustand store */
-    const [globalFilter, setGlobalFilter] = useState(() => {
-        const urlQ = searchParams.get('q');
-        // If URL has it, use it. Otherwise, use Zustand.
-        return urlQ !== null ? urlQ : postTable.globalFilter;
-    });
-
-    /** Set the table searchbar to the current query parameter's value */
-    const [showGlobalFilter, setShowGlobalFilter] = useState(() => {
-        const urlQ = searchParams.get('q');
-        // If there is a query in the URL, we want to show the filter bar
-        return urlQ !== null || postTable.showGlobalFilter;
-    });
-
-    /** Related to the [rowSelection, setRowSelection] pair just that it keeps track of which posts IDs have been selected */
-    const [selectedPostIds, setSelectedPostIds] = useState<(string | number)[]>([]);
-    /** Initialize a snackbar (notification) for later use */
-    const [snackbar, setSnackbar] = useState<{ open: boolean, message: string, severity: 'success' | 'error' }>({
+    // Snackbar state
+    const [snackbar, setSnackbar] = React.useState<{
+        open: boolean;
+        message: string;
+        severity: 'success' | 'error';
+    }>({
         open: false,
         message: '',
         severity: 'success'
     });
-    /** State used to control the "Are you sure you want to delete this?" kind of dialog showing up */
-    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-    /** Similar to the [deleteDialogOpen, setDeleteDialogOpen] pair but for bulk deletion */
-    const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
-    /** Keep track which post is going to be deleted */
-    const [postToDelete, setPostToDelete] = useState<PostStruct | null>(null);
 
-    /** Update URL when global filter changes */
-    useEffect(() => {
-        if (globalFilter) {
-            searchParams.set('q', globalFilter);
-        } else {
-            searchParams.delete('q');
-        }
-        setSearchParams(searchParams, { replace: true });
-    }, [globalFilter, searchParams, setSearchParams]);
+    // Delete states
+    const [postToDelete, setPostToDelete] = React.useState<Post | null>(null);
 
-    /** Save pagination to Zustand store whenever it changes */
-    useEffect(() => {
-        setPostTablePagination(pagination);
-    }, [pagination, setPostTablePagination]);
-
-    /** Save global filter to Zustand store whenever it changes */
-    useEffect(() => {
-        setPostTableGlobalFilter(globalFilter);
-    }, [globalFilter, setPostTableGlobalFilter]);
-
-    /** Save showGlobalFilter to Zustand store whenever it changes */
-    useEffect(() => {
-        setPostTableShowGlobalFilter(showGlobalFilter);
-    }, [showGlobalFilter, setPostTableShowGlobalFilter]);
-
-    /** Fetch Users once to use for mapping */
-    const { data: users = [], isLoading: usersLoading } = useQuery<User[]>({
-        queryKey: ['users'],
-        queryFn: async () => {
-            const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost'}${import.meta.env.VITE_API_PORT? `:${import.meta.env.VITE_API_PORT}` : ''}/users`);
-            return res.data;
-        },
+    // Table operations - include refreshTrigger in dependencies to reset on data changes
+    const tableOps = useTableOperations({
+        initialPagination: pagination,
+        onPaginationChange: onPaginationChange,
+        syncWithUrl: true,
+        searchParamKey: 'q',
+        tableKey: 'postTable'
     });
 
-    /** Fetch Posts with proper pagination and filtering - only fetch when on the post-list page */
-    const { data, isLoading, isError, isFetching } = useQuery({
-        queryKey: ['posts', pagination.pageIndex, pagination.pageSize, globalFilter, users] as const,
-        queryFn: async ({ queryKey }) => {
-            const pageIndex = queryKey[1] as number;
-            const pageSize = queryKey[2] as number;
-            const filter = (queryKey[3] as string) || "";
-            const currentUsers = queryKey[4] as User[];
+    // Get all posts - refreshTrigger ensures we get fresh data
+    const posts = useMemo(() => {
+        return api.getPosts();
+    }, [api]);
 
-            const allPostsResponse = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost'}${import.meta.env.VITE_API_PORT ? `:${import.meta.env.VITE_API_PORT}` : ''}/posts`);
-            let allPosts = allPostsResponse.data as PostStruct[];
+    // Prepare table data
+    const tableData = useMemo(() => {
+        if (apiLoading || !api.isInitialized) {
+            return { posts: [], totalCount: 0 };
+        }
 
-            if (filter && currentUsers && Array.isArray(currentUsers)) {
-                const searchLower = filter.toLowerCase();
-                allPosts = allPosts.filter((post: PostStruct) => {
-                    const user = currentUsers.find((u: User) => String(u.id) === String(post.userId));
-                    const authorName = user ? user.name.toLowerCase() : '';
+        const filteredPosts = tableOps.applyFiltersAndSorting(posts, (post, filter) => {
+            const author = post.author;
+            const authorName = author ? author.name.toLowerCase() : '';
+            const searchLower = filter.toLowerCase();
 
-                    return (
-                        post.title.toLowerCase().includes(searchLower) ||
-                        post.content.toLowerCase().includes(searchLower) ||
-                        authorName.includes(searchLower) ||
-                        String(post.id).toLowerCase().includes(searchLower) // Safe conversion
-                    );
+            return (
+                post.title.toLowerCase().includes(searchLower) ||
+                post.content.toLowerCase().includes(searchLower) ||
+                authorName.includes(searchLower) ||
+                String(post.id).toLowerCase().includes(searchLower)
+            );
+        });
+
+        const totalCount = filteredPosts.length;
+        const paginatedPosts = tableOps.applyPagination(filteredPosts);
+
+        return {
+            posts: paginatedPosts,
+            totalCount
+        };
+    }, [posts, apiLoading, api.isInitialized, tableOps]);
+
+    // Delete confirmations - only show for posts owned by current user
+    const singleDeleteConfirmation = useDeleteConfirmation({
+        onConfirm: async () => {
+            if (postToDelete && postToDelete.delete) {
+                try {
+                    await postToDelete.delete();
+                    setSnackbar({
+                        open: true,
+                        message: 'Post eliminato con successo',
+                        severity: 'success'
+                    });
+                    // Reset selection after delete
+                    tableOps.setRowSelection({});
+                } catch (error) {
+                    console.error('Error deleting post:', error);
+                    setSnackbar({
+                        open: true,
+                        message: 'Errore durante l\'eliminazione del post',
+                        severity: 'error'
+                    });
+                } finally {
+                    setPostToDelete(null);
+                }
+            }
+        },
+        title: 'Conferma eliminazione',
+        message: `Sei sicuro di voler eliminare il post "${postToDelete?.title}"? Questa azione non può essere annullata.`
+    });
+
+    const bulkDeleteConfirmation = useBulkDeleteConfirmation({
+        onConfirm: async () => {
+            const selectedIds = Object.keys(tableOps.rowSelection);
+            try {
+                const deletePromises = selectedIds.map(id => {
+                    const post = api.getPost(id);
+                    // Only delete if user owns this post
+                    if (post && isOwner(post.userId)) {
+                        return post?.delete() || Promise.resolve();
+                    }
+                    return Promise.resolve();
+                });
+                await Promise.all(deletePromises);
+                tableOps.setRowSelection({});
+                setSnackbar({
+                    open: true,
+                    message: `${selectedIds.length} post eliminati con successo`,
+                    severity: 'success'
+                });
+            } catch (error) {
+                console.error('Error deleting posts:', error);
+                setSnackbar({
+                    open: true,
+                    message: 'Errore durante l\'eliminazione dei post',
+                    severity: 'error'
                 });
             }
-
-            const totalCount = allPosts.length;
-            const startIndex = pageIndex * pageSize;
-            const endIndex = startIndex + pageSize;
-            const paginatedPosts = allPosts.slice(startIndex, endIndex);
-
-            return {
-                posts: paginatedPosts,
-                totalCount: totalCount,
-            };
         },
-        placeholderData: keepPreviousData,
-        enabled: !isPostDetailPage && !usersLoading,
+        count: tableOps.selectedCount,
+        itemName: 'post'
     });
 
-    /** Handle global filter change - reset to first page when searching */
-    const handleGlobalFilterChange = (filter: string) => {
-        setGlobalFilter(filter);
-        onPaginationChange({
-            ...pagination,
-            pageIndex: 0
-        });
-    };
+    // Check if user can edit/delete a specific post
+    const canEditDeletePost = useCallback((post: Post) => {
+        return isAuthenticated && isOwner(post.userId);
+    }, [isAuthenticated, isOwner]);
 
-    /** Handle single delete click */
-    const handleDeletePostClick = (post: PostStruct) => {
-        setPostToDelete(post);
-        setDeleteDialogOpen(true);
-    };
-
-    /** Handle bulk delete click */
-    const handleBulkDeleteClick = () => {
-        const selectedIds = Object.keys(rowSelection); // With getRowId, keys are IDs
-        if (selectedIds.length === 0) return;
-        setSelectedPostIds(selectedIds);
-        setBulkDeleteDialogOpen(true);
-    };
-
-    /** Handle single post delete confirmation */
-    const handleDeletePost = async () => {
-        if (!postToDelete) return;
-        setDeleteDialogOpen(false);
-
-        try {
-            // TODO: Call API to actually remove the item
-
-            /* To make items "Shift", invalidate the query.
-            TanStack Query will re-run the queryFn, which re-slices the data,
-            naturally pulling the next item into the current page. */
-            await queryClient.invalidateQueries({ queryKey: ['posts'] });
-
-            setSnackbar({ open: true, message: `Post eliminato`, severity: 'success' });
-        } catch {
-            setSnackbar({ open: true, message: `Errore`, severity: 'error' });
+    // Handlers
+    const handleDeletePostClick = useCallback((post: Post) => {
+        if (canEditDeletePost(post)) {
+            setPostToDelete(post);
+            singleDeleteConfirmation.openDialog();
         }
-        setPostToDelete(null);
-    };
+    }, [singleDeleteConfirmation, canEditDeletePost]);
 
-    /** Handle bulk delete confirmation */
-    const handleBulkDelete = async () => {
-        setBulkDeleteDialogOpen(false);
-        if (selectedPostIds.length === 0) return;
+    const handleViewPost = useCallback((post: Post) => {
+        navigation.navigateToPost(post.id);
+    }, [navigation]);
 
-        try {
-            // TODO: Call API to actually remove the item
-
-            setRowSelection({});
-            await queryClient.invalidateQueries({ queryKey: ['posts'] });
-
-            setSnackbar({ open: true, message: `${selectedPostIds.length} post eliminati`, severity: 'success' });
-        } catch {
-            setSnackbar({ open: true, message: `Errore`, severity: 'error' });
+    const handleEditPost = useCallback((post: Post) => {
+        if (canEditDeletePost(post)) {
+            navigation.navigateToPost(post.id, true);
         }
-    };
+    }, [navigation, canEditDeletePost]);
 
-    const handleViewPost = (post: PostStruct) => {
-        // Pass current location as 'from' parameter
-        navigate(`/post/${post.id}?from=${encodeURIComponent(location.pathname + location.search)}`);
-    };
+    const handleViewAuthor = useCallback((userId: number) => {
+        navigation.navigateToUser(userId);
+    }, [navigation]);
 
-    const handleEditPost = (post: PostStruct) => {
-        // Pass current location as 'from' parameter
-        navigate(`/post/${post.id}?edit=true&from=${encodeURIComponent(location.pathname + location.search)}`);
-    };
-
-    /** Define the columns for the Material React Table (MRT) */
-    const columns = React.useMemo<MRT_ColumnDef<PostStruct>[]>(() => [
+    // Table columns
+    const columns = useMemo<MRT_ColumnDef<Post>[]>(() => [
         {
             accessorKey: 'title',
             header: 'Titolo',
             size: 300,
+            enableSorting: true,
         },
         {
-            accessorKey: 'userId',
+            accessorKey: 'author',
             header: 'Autore',
             size: 200,
-            Cell: ({row}) => {
-                const user = users.find(u => String(u.id) === String(row.original.userId));
-                const authorName = user ? user.name : `User ${row.original.userId}`
+            enableSorting: true,
+            Cell: ({ row }) => {
+                const author = row.original.author;
+                const authorName = author ? author.name : `User ${row.original.userId}`;
 
                 return (
                     <span
-                        className="cursor-pointer hover:underline"
+                        className="cursor-pointer hover:underline text-gray-600"
                         onClick={(e) => {
                             e.stopPropagation();
-                            navigate(`/user/${row.original.userId}?from=${encodeURIComponent(location.pathname + location.search)}`);
+                            handleViewAuthor(row.original.userId);
                         }}
                     >
-                      {authorName || `User ${row.original.userId}`}
-                    </span>
+                    {authorName}
+                </span>
                 );
             }
         },
@@ -272,43 +217,40 @@ function PostListContent({ pagination, onPaginationChange, isPostDetailPage }: P
             accessorKey: 'createdAt',
             header: 'Data di creazione',
             size: 180,
+            enableSorting: true,
             Cell: ({ cell }) => {
                 const dateValue = cell.getValue<string>();
                 return dateValue ? formatDate(dateValue) : 'N/D';
             },
         },
-    ], [users]);
+    ], [handleViewAuthor]);
 
-    const selectedCount = Object.keys(rowSelection).length;
+    // Row props
+    const getRowProps = useCallback(({ row }: { row: { original: Post } }) => ({
+        onClick: (event: React.MouseEvent) => {
+            const target = event.target as HTMLElement;
+            const isActionButton = target.closest('button');
+            const isCheckbox = target.closest('input[type="checkbox"], .MuiCheckbox-root');
 
-    const renderTopToolbarCustomActions = () => (
-        <div className="flex gap-4 items-center">
-            {selectedCount > 0 && (
-                <Tooltip title="Elimina selezionati">
-                    <IconButton
-                        onClick={handleBulkDeleteClick}
-                        className="bg-red-100 hover:bg-red-200 text-red-600"
-                    >
-                        <DeleteIcon />
-                    </IconButton>
-                </Tooltip>
-            )}
-            <PrimaryButton startIcon={<AddIcon />} className="font-medium">
-                Crea Post
-            </PrimaryButton>
-            <SecondaryButton><DownloadIcon /></SecondaryButton>
-        </div>
-    );
+            if (!isActionButton && !isCheckbox) {
+                handleViewPost(row.original);
+            }
+        },
+        sx: {
+            cursor: 'pointer',
+        },
+    }), [handleViewPost]);
 
-    const detailPanel = (post: PostStruct) => {
+    // Detail panel
+    const detailPanel = useCallback((post: Post) => {
         const previewLength = 300;
         const showPreview = post.content.length > previewLength;
         const displayContent = showPreview
             ? `${post.content.substring(0, previewLength)}...`
             : post.content;
 
-        const user = users.find(u => String(u.id) === String(post.userId));
-        const authorName = user ? user.name : `User ${post.userId}`;
+        const author = post.author;
+        const authorName = author ? author.name : `User ${post.userId}`;
 
         return (
             <div className="p-6 bg-white border-l-4 border-black/50 shadow-inner relative">
@@ -334,173 +276,131 @@ function PostListContent({ pagination, onPaginationChange, isPostDetailPage }: P
                 </div>
 
                 {showPreview && (
-                    <PrimaryButton
-                        onClick={() => navigate(`/post/${post.id}?from=${encodeURIComponent(location.pathname + location.search)}`)}
-                        className="mt-4 inline-flex items-center gap-1 font-medium text-sm"
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            handleViewPost(post);
+                        }}
+                        className="mt-4 inline-flex items-center gap-1 font-medium text-sm bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded transition-colors"
                     >
                         Leggi di più
-                    </PrimaryButton>
+                    </button>
                 )}
             </div>
         );
-    };
+    }, [handleViewPost]);
 
-    /** Returns the row props with correct typing */
-    const getRowProps = ({ row }: { row: MRT_Row<PostStruct> }) => {
-        return {
-            onClick: (event: React.MouseEvent) => {
-                const target = event.target as HTMLElement;
+    // Top toolbar actions - only show if user is authenticated
+    const renderTopToolbarCustomActions = useCallback(() => (
+        <div className="flex gap-4 items-center">
+            {isAuthenticated && tableOps.selectedCount > 0 && (
+                <Tooltip title="Elimina selezionati">
+                    <IconButton
+                        onClick={bulkDeleteConfirmation.openDialog}
+                        className="bg-red-100 hover:bg-red-200 text-red-600"
+                    >
+                        <DeleteIcon />
+                    </IconButton>
+                </Tooltip>
+            )}
+            {isAuthenticated && (
+                <PrimaryButton startIcon={<AddIcon />} className="font-medium">
+                    Crea Post
+                </PrimaryButton>
+            )}
+            <SecondaryButton><DownloadIcon /></SecondaryButton>
+        </div>
+    ), [tableOps.selectedCount, bulkDeleteConfirmation, isAuthenticated]);
 
-                // Check if the click was on an interactive element
-                const isActionButton = target.closest('button');
-                const isCheckbox = target.closest('input[type="checkbox"], .MuiCheckbox-root');
-
-                // If it's not a button or checkbox, navigate
-                if (!isActionButton && !isCheckbox) {
-                    handleViewPost(row.original);
-                }
-            },
-            sx: {
-                cursor: 'pointer',
-            },
-        };
-    };
+    // Show API error
+    if (apiError) {
+        return (
+            <div className="p-4 text-red-600 bg-red-100 rounded-lg">
+                Impossibile caricare i dati. Assicurati che `json-server --watch db.json --port 3001` sia attivo.
+            </div>
+        );
+    }
 
     return (
         <>
-            {isError ? (
-                <div className="p-4 text-red-600 bg-red-100 rounded-lg">
-                    Impossibile caricare i dati. Assicurati che `json-server --watch db.json --port 3001` sia attivo.
-                </div>
-            ) : (
-                <ContentTable<PostStruct>
-                    columns={columns}
-                    data={data?.posts ?? []}
-                    rowCount={data?.totalCount ?? 0}
-                    pagination={pagination}
-                    onPaginationChange={onPaginationChange}
-                    isLoading={isLoading || usersLoading}
-                    isFetching={isFetching}
-                    rowSelection={rowSelection}
-                    onRowSelectionChange={setRowSelection}
-                    getRowId={(row) => String(row.id)}
-                    enableRowSelection={true}
-                    enableRowActions={true}
-                    showViewAction={false}
-                    showEditAction={true}
-                    showDeleteAction={true}
-                    onEdit={handleEditPost}
-                    onDelete={handleDeletePostClick}
-                    onView={handleViewPost}
-                    detailPanel={detailPanel}
-                    muiTableBodyRowProps={getRowProps}
-                    title="Gestione dei post"
-                    totalCountText={
-                        isLoading || usersLoading
-                            ? "Caricamento..."
-                            : globalFilter
-                                ? `${data?.totalCount ?? 0} risultati trovati (ricerca: "${globalFilter}")`
-                                : `${data?.totalCount ?? 0} post totali`
-                    }
-                    selectedCount={selectedCount}
-                    renderTopToolbarCustomActions={renderTopToolbarCustomActions}
-                    globalFilter={globalFilter}
-                    onGlobalFilterChange={(filter) => {
-                        handleGlobalFilterChange(filter);
-                    }}
-                    showGlobalFilter={showGlobalFilter}
-                    onShowGlobalFilterChange={setShowGlobalFilter}
-                />
-            )}
+            <ContentTable<Post>
+                columns={columns}
+                data={tableData.posts ?? []}
+                rowCount={tableData.totalCount ?? 0}
+                pagination={tableOps.pagination}
+                onPaginationChange={tableOps.setPagination}
+                isLoading={apiLoading || !api.isInitialized}
+                isFetching={false}
+                rowSelection={tableOps.rowSelection}
+                onRowSelectionChange={tableOps.setRowSelection}
+                getRowId={(row) => String(row.id)}
+                enableRowSelection={isAuthenticated} // Only enable selection if authenticated
+                enableRowActions={isAuthenticated} // Only enable actions if authenticated
+                showViewAction={true}
+                showEditAction={isAuthenticated} // Only show edit if authenticated
+                showDeleteAction={isAuthenticated} // Only show delete if authenticated
+                onEdit={handleEditPost}
+                onDelete={handleDeletePostClick}
+                onView={handleViewPost}
+                detailPanel={detailPanel}
+                muiTableBodyRowProps={getRowProps}
+                title="Gestione dei post"
+                totalCountText={
+                    apiLoading || !api.isInitialized
+                        ? "Caricamento..."
+                        : tableOps.globalFilter
+                            ? `${tableData.totalCount ?? 0} risultati trovati (ricerca: "${tableOps.globalFilter}")`
+                            : `${tableData.totalCount ?? 0} post totali`
+                }
+                selectedCount={tableOps.selectedCount}
+                renderTopToolbarCustomActions={renderTopToolbarCustomActions}
+                globalFilter={tableOps.globalFilter}
+                onGlobalFilterChange={tableOps.setGlobalFilter}
+                showGlobalFilter={tableOps.showGlobalFilter}
+                onShowGlobalFilterChange={tableOps.setShowGlobalFilter}
+                sorting={tableOps.sorting}
+                onSortingChange={tableOps.setSorting}
+                columnOrder={tableOps.columnOrder}
+                onColumnOrderChange={tableOps.setColumnOrder}
+                columnVisibility={tableOps.columnVisibility}
+                onColumnVisibilityChange={tableOps.setColumnVisibility}
+                columnPinning={tableOps.columnPinning}
+                onColumnPinningChange={tableOps.setColumnPinning}
+                scrollPosition={tableOps.scrollPosition}
+                onScrollPositionChange={tableOps.setScrollPosition}
+                tableKey="posts-table"
+                isRowActionEnabled={(row) => canEditDeletePost(row)}
+            />
 
-            {/* Single Delete Confirmation Dialog */}
-            <Dialog
-                open={deleteDialogOpen}
-                onClose={() => setDeleteDialogOpen(false)}
-                aria-labelledby="delete-post-dialog-title"
-                aria-describedby="delete-post-dialog-description"
-                slotProps={{
-                    paper: {
-                        sx: {
-                            borderRadius: '16px',
-                            padding: '8px'
-                        }
-                    }
+            {/* Delete confirmation dialogs */}
+            <ConfirmationDialog
+                open={singleDeleteConfirmation.isOpen}
+                title={singleDeleteConfirmation.dialogConfig.title}
+                message={singleDeleteConfirmation.dialogConfig.message}
+                onConfirm={singleDeleteConfirmation.handleConfirm}
+                onCancel={() => {
+                    singleDeleteConfirmation.closeDialog();
+                    setPostToDelete(null);
                 }}
-            >
-                <DialogTitle id="delete-post-dialog-title" className="font-semibold text-xl">
-                    Conferma eliminazione
-                </DialogTitle>
-                <DialogContent>
-                    <DialogContentText id="delete-post-dialog-description" className="text-gray-700">
-                        Sei sicuro di voler eliminare il post "{postToDelete?.title}"?
-                        Questa azione non può essere annullata.
-                    </DialogContentText>
-                </DialogContent>
-                <DialogActions className="p-6 pt-2">
-                    <Button
-                        onClick={() => setDeleteDialogOpen(false)}
-                        variant="outlined"
-                        className="rounded-lg border-gray-300 text-gray-700 hover:bg-gray-50"
-                    >
-                        Annulla
-                    </Button>
-                    <Button
-                        onClick={handleDeletePost}
-                        variant="contained"
-                        color="error"
-                        className="rounded-lg bg-red-600 hover:bg-red-700 text-white"
-                        autoFocus
-                    >
-                        Elimina
-                    </Button>
-                </DialogActions>
-            </Dialog>
+                confirmText="Elimina"
+                cancelText="Annulla"
+                severity="error"
+                isLoading={singleDeleteConfirmation.isDeleting}
+            />
 
-            {/* Bulk Delete Confirmation Dialog */}
-            <Dialog
-                open={bulkDeleteDialogOpen}
-                onClose={() => setBulkDeleteDialogOpen(false)}
-                aria-labelledby="bulk-delete-dialog-title"
-                aria-describedby="bulk-delete-dialog-description"
-                slotProps={{
-                    paper: {
-                        sx: {
-                            borderRadius: '16px',
-                            padding: '8px'
-                        }
-                    }
-                }}
-            >
-                <DialogTitle id="bulk-delete-dialog-title" className="font-semibold text-xl">
-                    Conferma eliminazione multipla
-                </DialogTitle>
-                <DialogContent>
-                    <DialogContentText id="bulk-delete-dialog-description" className="text-gray-700">
-                        Sei sicuro di voler eliminare {selectedPostIds.length} post selezionati?
-                        Questa azione non può essere annullata.
-                    </DialogContentText>
-                </DialogContent>
-                <DialogActions className="p-6 pt-2">
-                    <Button
-                        onClick={() => setBulkDeleteDialogOpen(false)}
-                        variant="outlined"
-                        className="rounded-lg border-gray-300 text-gray-700 hover:bg-gray-50"
-                    >
-                        Annulla
-                    </Button>
-                    <Button
-                        onClick={handleBulkDelete}
-                        variant="contained"
-                        color="error"
-                        className="rounded-lg bg-red-600 hover:bg-red-700 text-white"
-                        autoFocus
-                    >
-                        Elimina {selectedPostIds.length} post
-                    </Button>
-                </DialogActions>
-            </Dialog>
+            <ConfirmationDialog
+                open={bulkDeleteConfirmation.isOpen}
+                title={bulkDeleteConfirmation.dialogConfig.title}
+                message={bulkDeleteConfirmation.dialogConfig.message}
+                onConfirm={bulkDeleteConfirmation.handleConfirm}
+                onCancel={bulkDeleteConfirmation.closeDialog}
+                confirmText={`Elimina ${tableOps.selectedCount} post`}
+                cancelText="Annulla"
+                severity="error"
+                isLoading={bulkDeleteConfirmation.isDeleting}
+            />
 
+            {/* Snackbar */}
             <Snackbar
                 open={snackbar.open}
                 autoHideDuration={3000}

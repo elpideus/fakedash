@@ -1,12 +1,21 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import LoginPage from "./pages/Login.tsx";
 import PostsPage from "./pages/PostsPage.tsx";
+import ProtectedRoute from "./components/ProtectedRoute.tsx";
 
 function App() {
     return (
-        <Routes> { /* Using React Router for proper pagination */ }
+        <Routes>
             <Route path="/login" element={<LoginPage />} />
-            <Route path="/*" element={<PostsPage />} />
+            <Route
+                path="/*"
+                element={
+                    <ProtectedRoute>
+                        <PostsPage />
+                    </ProtectedRoute>
+                }
+            />
+            <Route path="/" element={<Navigate to="/posts" replace />} />
         </Routes>
     );
 }
