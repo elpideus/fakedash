@@ -217,16 +217,19 @@ function ContentTable<T extends MRT_RowData>({
                     }) : {};
 
                     return {
-                        ...baseProps,
+                        ...baseProps, // This ensures onClick and other props are passed through
                         style: {
                             ...(baseProps.style || {}),
                             backgroundColor: isSelected ? 'rgba(0, 0, 0, 0.08) !important' : 'transparent',
                         },
-                        className: baseProps.className,
+                        // Ensure standard event handlers are preserved
+                        onClick: baseProps.onClick,
                         onMouseEnter: baseProps.onMouseEnter,
                         onMouseLeave: baseProps.onMouseLeave,
-                        onClick: baseProps.onClick,
                         sx: {
+                            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+                            // @ts-ignore
+                            ...baseProps.sx,
                             '&:hover': {
                                 backgroundColor: isSelected ? 'rgba(0, 0, 0, 0.12) !important' : 'rgba(0, 0, 0, 0.04)',
                             },

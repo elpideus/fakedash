@@ -7,18 +7,10 @@ export const PrimaryButton = styled(Button)(() => ({
     padding: "10px 20px",
     borderRadius: "12px",
     textTransform: "none",
-
-    "&.MuiButton-root": {
-        color: "#fff",
-    },
-
     "&:hover": {
-        "&.MuiButton-root": {
-            backgroundColor: "#00000080",
-            color: "#fff",
-        }
+        backgroundColor: "rgba(0, 0, 0, 0.8)", // 80% opacity black
+        color: "#fff",
     }
-
 }));
 
 export const SecondaryButton = styled(Button)(() => ({
@@ -27,7 +19,9 @@ export const SecondaryButton = styled(Button)(() => ({
     padding: "10px 20px",
     borderRadius: "12px",
     textTransform: "none",
+    border: "1px solid rgba(0, 0, 0, 0.23)",
     "&:hover": {
-        backgroundColor: "#00000020",
+        backgroundColor: "rgba(0, 0, 0, 0.04)",
+        border: "1px solid rgba(0, 0, 0, 0.23)",
     },
 }));

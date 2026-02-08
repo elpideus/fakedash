@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -35,11 +35,14 @@ interface User {
     name: string;
 }
 
-function Post() {
+function PostDetails() {
     /** Gets the post ID from the parameters */
     const { postId } = useParams<{ postId: string }>();
     /** Used for routing */
     const navigate = useNavigate();
+    /** Get the 'from' parameter from URL to know where to go back */
+    const [searchParams] = useSearchParams();
+    const from = searchParams.get('from') || '/';
     /** We use TanStack Query for...well...querying the data */
     const queryClient = useQueryClient();
     /** State that determines if the post is being edited or not */
@@ -50,6 +53,8 @@ function Post() {
     const [isDeleting, setIsDeleting] = useState(false);
     /** State for delete confirmation dialog */
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+
+    const decodedFrom = from ? decodeURIComponent(from) : '/';
 
     /** Fetches post data from API */
     const { data: post, isLoading: postLoading, isError: postError } = useQuery<Post>({
@@ -103,9 +108,9 @@ function Post() {
             });
         }
 
-        // Redirects the user back to the dashboard after deletion
+        // Redirects the user back to the previous page after deletion
         setTimeout(() => {
-            navigate('/');
+            navigate(decodedFrom);
         }, 1000);
     };
 
@@ -181,9 +186,9 @@ function Post() {
             <div className="p-8 h-full">
                 <div className="mb-6">
                     <Link
-                        to="/"
+                        to={decodedFrom}
                         className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-800"
-                    > {/* Using React Router's Link component to have proper routing */}
+                    >
                         <ArrowBackIcon /> Torna alla lista
                     </Link>
                 </div>
@@ -200,18 +205,20 @@ function Post() {
     if (!editedPost && post) setEditedPost(post);
 
     return (
-        <div className="p-8 h-full overflow-auto">
-            {/* Back button */}
-            <div className="flex justify-between items-center mb-6">
-                <Link
-                    to="/"
-                    className="group inline-flex items-center gap-2 text-gray-600 hover:text-gray-800 transition-all duration-200"
-                >
-                    <span className="inline-block transition-transform duration-200 group-hover:-translate-x-2 delay-150">
-                        <ArrowBackIcon />
-                    </span>
-                    <span className="group-hover:scale-110 transition-all duration-200">Torna alla lista</span>
-                </Link>
+            <div className="p-8 h-full overflow-auto">
+                {/* Back button */}
+                <div className="flex justify-between items-center mb-6">
+                    <Link
+                        to={decodedFrom}
+                        className="group inline-flex items-center gap-2 text-gray-600 hover:text-gray-800 transition-all duration-200"
+                    >
+                        <span className="inline-block transition-transform duration-200 group-hover:-translate-x-2 delay-150">
+                            <ArrowBackIcon />
+                        </span>
+                        <span className="group-hover:scale-110 transition-all duration-200">
+                            {from === '/' ? 'Torna alla lista' : 'Torna indietro'}
+                        </span>
+                    </Link>
 
 
                 {/* Edit/Delete buttons (only show when not editing) */}
@@ -285,7 +292,7 @@ function Post() {
                             {userLoading ? (
                                 <span className="text-gray-400 italic">Caricamento autore...</span>
                             ) : (
-                                <span className="font-medium">{user ? user.name : `User ${editedPost?.userId || 'non disponibile'}`}</span>
+                                <Link to={`/user/${user ? user.id : ""}?from=${encodeURIComponent(location.pathname + location.search)}`} className="font-medium">{user ? user.name : `User ${editedPost?.userId || 'non disponibile'}`}</Link>
                             )}
                             <span className="text-gray-400">•</span>
                             <span className="text-sm text-gray-500">
@@ -362,4 +369,4 @@ function Post() {
     );
 }
 
-export default Post;
+export default PostDetails;

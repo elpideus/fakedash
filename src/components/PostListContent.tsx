@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 
 // External libraries
 import axios from "axios";
@@ -43,6 +43,8 @@ interface PostListContentProps {
 function PostListContent({ pagination, onPaginationChange, isPostDetailPage }: PostListContentProps) {
     /** Using React Router */
     const navigate = useNavigate();
+    /** Get current location to pass as 'from' parameter */
+    const location = useLocation();
     /** Store search parameters */
     const [searchParams, setSearchParams] = useSearchParams();
     /** Using TanStack Query for better querying */
@@ -131,7 +133,6 @@ function PostListContent({ pagination, onPaginationChange, isPostDetailPage }: P
     const { data, isLoading, isError, isFetching } = useQuery({
         queryKey: ['posts', pagination.pageIndex, pagination.pageSize, globalFilter, users] as const,
         queryFn: async ({ queryKey }) => {
-            // 1. Properly type the queryKey elements
             const pageIndex = queryKey[1] as number;
             const pageSize = queryKey[2] as number;
             const filter = (queryKey[3] as string) || "";
@@ -156,7 +157,6 @@ function PostListContent({ pagination, onPaginationChange, isPostDetailPage }: P
             }
 
             const totalCount = allPosts.length;
-            // 2. Arithmetic is now safe because types are guaranteed
             const startIndex = pageIndex * pageSize;
             const endIndex = startIndex + pageSize;
             const paginatedPosts = allPosts.slice(startIndex, endIndex);
@@ -231,11 +231,13 @@ function PostListContent({ pagination, onPaginationChange, isPostDetailPage }: P
     };
 
     const handleViewPost = (post: PostStruct) => {
-        navigate(`/post/${post.id}`);
+        // Pass current location as 'from' parameter
+        navigate(`/post/${post.id}?from=${encodeURIComponent(location.pathname + location.search)}`);
     };
 
     const handleEditPost = (post: PostStruct) => {
-        navigate(`/post/${post.id}?edit=true`);
+        // Pass current location as 'from' parameter
+        navigate(`/post/${post.id}?edit=true&from=${encodeURIComponent(location.pathname + location.search)}`);
     };
 
     /** Define the columns for the Material React Table (MRT) */
@@ -246,13 +248,25 @@ function PostListContent({ pagination, onPaginationChange, isPostDetailPage }: P
             size: 300,
         },
         {
-            id: 'author',
+            accessorKey: 'userId',
             header: 'Autore',
             size: 200,
-            accessorFn: (row) => {
-                const user = users.find(u => String(u.id) === String(row.userId));
-                return user ? user.name : `User ${row.userId}`;
-            },
+            Cell: ({row}) => {
+                const user = users.find(u => String(u.id) === String(row.original.userId));
+                const authorName = user ? user.name : `User ${row.original.userId}`
+
+                return (
+                    <span
+                        className="cursor-pointer hover:underline"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/user/${row.original.userId}?from=${encodeURIComponent(location.pathname + location.search)}`);
+                        }}
+                    >
+                      {authorName || `User ${row.original.userId}`}
+                    </span>
+                );
+            }
         },
         {
             accessorKey: 'createdAt',
@@ -279,7 +293,9 @@ function PostListContent({ pagination, onPaginationChange, isPostDetailPage }: P
                     </IconButton>
                 </Tooltip>
             )}
-            <PrimaryButton startIcon={<AddIcon />}>Crea Post</PrimaryButton>
+            <PrimaryButton startIcon={<AddIcon />} className="font-medium">
+                Crea Post
+            </PrimaryButton>
             <SecondaryButton><DownloadIcon /></SecondaryButton>
         </div>
     );
@@ -319,9 +335,8 @@ function PostListContent({ pagination, onPaginationChange, isPostDetailPage }: P
 
                 {showPreview && (
                     <PrimaryButton
-                        /* Use the 'navigate' function you defined at the top of the component */
-                        onClick={() => navigate(`/post/${post.id}`)}
-                        className="mt-4 inline-flex items-center gap-1 text-white font-medium text-sm hover:bg-black/80"
+                        onClick={() => navigate(`/post/${post.id}?from=${encodeURIComponent(location.pathname + location.search)}`)}
+                        className="mt-4 inline-flex items-center gap-1 font-medium text-sm"
                     >
                         Leggi di più
                     </PrimaryButton>
@@ -335,17 +350,18 @@ function PostListContent({ pagination, onPaginationChange, isPostDetailPage }: P
         return {
             onClick: (event: React.MouseEvent) => {
                 const target = event.target as HTMLElement;
-                const isActionButton = target.closest('button[class*="MuiIconButton"]');
-                const isCheckbox = target.closest('input[type="checkbox"], .MuiCheckbox-root, [role="checkbox"]');
-                const isExpansionToggle = target.closest('button[aria-label*="Expand"], button[aria-label*="Collapse"]');
 
-                if (!isActionButton && !isCheckbox && !isExpansionToggle) handleViewPost(row.original);
+                // Check if the click was on an interactive element
+                const isActionButton = target.closest('button');
+                const isCheckbox = target.closest('input[type="checkbox"], .MuiCheckbox-root');
+
+                // If it's not a button or checkbox, navigate
+                if (!isActionButton && !isCheckbox) {
+                    handleViewPost(row.original);
+                }
             },
             sx: {
                 cursor: 'pointer',
-                '&:hover': {
-                    backgroundColor: 'rgba(0, 0, 0, 0.04)',
-                },
             },
         };
     };

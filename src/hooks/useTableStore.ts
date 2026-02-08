@@ -20,6 +20,12 @@ interface TableState {
         showGlobalFilter: boolean;
         rowSelection: MRT_RowSelectionState;
     };
+    userDetailsTable: {
+        pagination: PaginationState;
+        globalFilter: string;
+        showGlobalFilter: boolean;
+        rowSelection: MRT_RowSelectionState;
+    };
     setPostTablePagination: (pagination: PaginationState) => void;
     setPostTableGlobalFilter: (globalFilter: string) => void;
     setPostTableShowGlobalFilter: (show: boolean) => void;
@@ -28,6 +34,10 @@ interface TableState {
     setUserTableGlobalFilter: (globalFilter: string) => void;
     setUserTableShowGlobalFilter: (show: boolean) => void;
     setUserTableSelection: (selection: MRT_RowSelectionState) => void;
+    setUserDetailsTablePagination: (pagination: PaginationState) => void;
+    setUserDetailsTableGlobalFilter: (globalFilter: string) => void;
+    setUserDetailsTableShowGlobalFilter: (show: boolean) => void;
+    setUserDetailsTableSelection: (selection: MRT_RowSelectionState) => void;
 }
 
 export const useTableStore = create<TableState>()(
@@ -40,6 +50,12 @@ export const useTableStore = create<TableState>()(
                 rowSelection: {},
             },
             userTable: {
+                pagination: { pageIndex: 0, pageSize: 10 },
+                globalFilter: '',
+                showGlobalFilter: false,
+                rowSelection: {},
+            },
+            userDetailsTable: {
                 pagination: { pageIndex: 0, pageSize: 10 },
                 globalFilter: '',
                 showGlobalFilter: false,
@@ -62,6 +78,15 @@ export const useTableStore = create<TableState>()(
                 set((state) => ({ userTable: { ...state.userTable, showGlobalFilter } })),
             setUserTableSelection: (rowSelection) =>
                 set((state) => ({ userTable: { ...state.userTable, rowSelection } })),
+
+            setUserDetailsTablePagination: (pagination) =>
+                set((state) => ({ userDetailsTable: { ...state.userDetailsTable, pagination } })),
+            setUserDetailsTableGlobalFilter: (globalFilter) =>
+                set((state) => ({ userDetailsTable: { ...state.userDetailsTable, globalFilter } })),
+            setUserDetailsTableShowGlobalFilter: (showGlobalFilter) =>
+                set((state) => ({ userDetailsTable: { ...state.userDetailsTable, showGlobalFilter } })),
+            setUserDetailsTableSelection: (rowSelection) =>
+                set((state) => ({ userDetailsTable: { ...state.userDetailsTable, rowSelection } })),
         }),
         { name: 'table-storage' }
     )
