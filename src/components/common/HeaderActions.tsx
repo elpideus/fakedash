@@ -6,39 +6,50 @@ import SaveIcon from '@mui/icons-material/Save';
 import CancelIcon from '@mui/icons-material/Cancel';
 
 /**
- * Props for the HeaderActions component.
+ * Interface defining the properties for the {@link HeaderActions} component.
  */
 interface HeaderActionsProps {
-    /** Whether the parent view is currently in edit mode */
+    /** Indicates if the interface should display "Save/Cancel" (true) or "Edit/Delete" (false). */
     isEditing: boolean;
-    /** Trigger edit mode */
+    /** Function to trigger the transition into edit mode. */
     onEdit: () => void;
-    /** Persist changes */
+    /** Function to persist current changes to the data source. */
     onSave: () => void;
-    /** Cancel editing and revert changes */
+    /** Function to discard changes and return to view mode. */
     onCancel: () => void;
-    /** Delete action (optional) */
+    /** Optional function to trigger a resource deletion. */
     onDelete?: () => void;
-    /** Whether a delete operation is in progress */
+    /** If true, prevents interaction with the delete button.
+     * @default false
+     */
     isDeleting?: boolean;
-    /** Disable the edit action */
+    /** If true, prevents the edit button from being clicked. */
     disableEdit?: boolean;
-    /** Disable the save action */
+    /** If true, prevents the save button from being clicked (e.g., during validation errors). */
     disableSave?: boolean;
-    /** Disable the delete action */
+    /** If true, prevents the delete button from being clicked. */
     disableDelete?: boolean;
-    /** Whether to show the edit button when not editing */
+    /** * Controls the visibility of the Edit action when in view mode.
+     * @default false
+     */
     showEdit?: boolean;
-    /** Whether to show the delete button when not editing */
+    /** Controls the visibility of the Delete action when in view mode.
+     * @default false
+     */
     showDelete?: boolean;
 }
 
 /**
- * Header action buttons for detail pages.
+ * A context-aware toolbar for detail headers.
  *
- * Displays different actions depending on edit state:
- * - View mode: edit / delete
- * - Edit mode: save / cancel
+ * @remarks
+ * This component toggles between two distinct action sets based on the `isEditing` prop:
+ * - **View Mode:** Renders Edit and Delete buttons.
+ * - **Edit Mode:** Renders Save and Cancel buttons.
+ *
+ * It uses Tailwind classes for background coloring and MUI IconButtons for interaction.
+ *
+ * @component
  */
 const HeaderActions: React.FC<HeaderActionsProps> = ({
                                                          isEditing,
@@ -53,6 +64,7 @@ const HeaderActions: React.FC<HeaderActionsProps> = ({
                                                          showEdit = false,
                                                          showDelete = false
                                                      }) => {
+    // Mode: View (Edit / Delete)
     if (!isEditing) {
         return (
             <div className="flex gap-2">
@@ -81,6 +93,7 @@ const HeaderActions: React.FC<HeaderActionsProps> = ({
         );
     }
 
+    // Mode: Edit (Save / Cancel)
     return (
         <div className="flex gap-2">
             <IconButton

@@ -3,30 +3,38 @@ import { Drawer as MuiDrawer, Box, IconButton, Typography, Divider } from '@mui/
 import CloseIcon from '@mui/icons-material/Close';
 
 /**
- * Props for the Drawer component.
+ * Interface for the {@link Drawer} component properties.
  */
 interface DrawerProps {
-    /** Whether the drawer is open */
+    /** Whether the drawer is open and visible. */
     open: boolean;
-    /** Callback fired when the drawer should close */
+    /** Callback function triggered when the drawer requests to close. */
     onClose: () => void;
-    /** Title displayed in the drawer header */
+    /** Text displayed prominently in the header of the drawer. */
     title: string;
-    /** Drawer content */
+    /** The main content area of the drawer. */
     children: React.ReactNode;
-    /** Width of the drawer (default: 600 px) */
+    /** * The horizontal or vertical size of the drawer.
+     * @default 600
+     */
     width?: number | string;
-    /** Side from which the drawer appears (default: "right") */
+    /** * Specifies which side of the screen the drawer attaches to.
+     * @default 'right'
+     */
     anchor?: 'left' | 'right' | 'top' | 'bottom';
-    /** Whether to show the close (X) button in the header */
+    /** * If true, displays an 'X' button in the top right corner.
+     * @default true
+     */
     showCloseButton?: boolean;
 }
 
 /**
- * Reusable drawer component.
+ * A standardized side-panel component built on top of Material UI's Drawer.
  *
- * Wraps MUI's Drawer with a consistent header, title,
- * optional close button, and scrollable content area.
+ * Provides a consistent header layout, automatic overflow handling for content,
+ * and responsive width constraints.
+ *
+ * @component
  */
 const Drawer: React.FC<DrawerProps> = ({
                                            open,
@@ -58,7 +66,7 @@ const Drawer: React.FC<DrawerProps> = ({
                     flexDirection: 'column'
                 }}
             >
-                {/* Header */}
+                {/* Header Section */}
                 <Box
                     sx={{
                         display: 'flex',
@@ -89,7 +97,7 @@ const Drawer: React.FC<DrawerProps> = ({
 
                 <Divider sx={{ mb: 3 }} />
 
-                {/* Content */}
+                {/* Scrollable Content Area */}
                 <Box sx={{ flex: 1, overflow: 'auto' }}>
                     {children}
                 </Box>

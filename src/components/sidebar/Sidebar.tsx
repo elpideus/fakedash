@@ -7,41 +7,41 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useAuth } from '../../store/authStore.ts';
 
 /**
- * Props for the Sidebar component.
+ * Interface defining the properties for the {@link Sidebar} component.
  */
 interface SidebarProps {
-    /**
-     * Optional callback fired when a navigation item is clicked.
-     * Receives the id of the clicked item.
+    /** Optional callback fired when a navigation item is clicked.
+     * Receives the unique ID of the clicked menu item.
      */
     onNavClick?: (id: number) => void;
-    /** Currently active navigation item (optional external control) */
+    /** The index of the currently active navigation item (for external control). */
     activeItem?: number;
 }
 
 /**
- * Application sidebar navigation.
+ * Primary vertical navigation sidebar for the application.
  *
- * Features:
- * - Route-aware active item highlighting
- * - Animated selection indicator
- * - Special handling for list vs detail pages
- * - User profile and logout action
+ * @remarks
+ * This component manages a complex "sliding" selection indicator. It uses `useRef` to track
+ * navigation history (previous route and index) to determine whether the indicator should
+ * slide vertically, fade out (when entering detail pages), or "pop" in (when returning to lists).
+ *
+ * @component
  */
 function Sidebar({ onNavClick }: SidebarProps) {
     const location = useLocation();
     const navigate = useNavigate();
     const { user, logout } = useAuth();
 
-    /** Timeout ref used to sequence animations */
+    /** Reference for sequence animation timers to prevent memory leaks or race conditions. */
     const animationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    /** Tracks whether the previous route was a detail page */
+    /** Persists the "detail page" state across renders to calculate entry/exit animations. */
     const prevIsDetailPageRef = useRef(false);
-    /** Tracks the previously active navigation index */
+    /** Persists the last valid menu index to provide a starting point for the next animation. */
     const prevActiveIndexRef = useRef(-1);
 
-    /**
-     * Sidebar navigation items.
+    /** Configuration for sidebar navigation links.
+     * Icons are customized with specific font sizes and opacities for visual consistency.
      */
     const navItems = [
         {
@@ -58,16 +58,14 @@ function Sidebar({ onNavClick }: SidebarProps) {
         }
     ];
 
-    /**
-     * Determines whether the current route is a detail page.
-     * Detail pages hide the selection indicator.
+    /** Evaluates if the current route is a sub-page (detail view).
+     * This state is used to hide/show the selection background.
      */
     const isDetailPage =
         location.pathname.startsWith('/post/') ||
         location.pathname.startsWith('/user/');
 
-    /**
-     * Resolves the active navigation index based on the current route.
+    /** Matches the current URL path against the navigation item list.
      */
     const activeItem = navItems.findIndex(item =>
         item.path === '/'
@@ -77,8 +75,7 @@ function Sidebar({ onNavClick }: SidebarProps) {
 
     const safeActiveIndex = activeItem === -1 ? 0 : activeItem;
 
-    /**
-     * Visual styles for the selection indicator.
+    /** CSS properties for the sliding background indicator.
      */
     const [selectionStyle, setSelectionStyle] = useState({
         top: `${safeActiveIndex * 64}px`,
@@ -87,20 +84,18 @@ function Sidebar({ onNavClick }: SidebarProps) {
         transition: 'transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 300ms ease-out'
     });
 
-    /**
-     * Transform state for animating the selection indicator.
+    /** Coordinate state for the indicator's CSS transform.
      */
     const [transform, setTransform] = useState({
         translateX: isDetailPage ? '-100%' : '0%',
         translateY: `${safeActiveIndex * 64}px`
     });
 
-    /**
-     * Handles sidebar selection animations on route changes.
-     * Special cases:
-     * - Entering a detail page
-     * - Returning from a detail page
-     * - Switching between list pages
+    /** Effect hook to manage the state machine of the sidebar indicator.
+     * Logic branches:
+     * 1. Entering a detail page (Hide indicator).
+     * 2. Returning from a detail page (Teleport and fade in).
+     * 3. Switching between list items (Smooth vertical slide).
      */
     useEffect(() => {
         if (animationTimeoutRef.current) {
@@ -122,12 +117,14 @@ function Sidebar({ onNavClick }: SidebarProps) {
             }));
 
             if (isDetailPage && !prevIsDetailPage) {
+                // Moving into a detail page
                 setTransform({
                     translateX: '-100%',
                     translateY: `${prevActiveIndexRef.current * 64}px`
                 });
                 setSelectionStyle(prev => ({ ...prev, opacity: 0 }));
             } else if (!isDetailPage && prevIsDetailPage) {
+                // Returning to a list page
                 setTransform({
                     translateX: '-100%',
                     translateY: `${safeActiveIndex * 64}px`
@@ -144,11 +141,13 @@ function Sidebar({ onNavClick }: SidebarProps) {
                     });
                 }, 10);
             } else if (isSwitchingListPages) {
+                // Normal vertical slide
                 setTransform({
                     translateX: '0%',
                     translateY: `${safeActiveIndex * 64}px`
                 });
             } else if (!isDetailPage) {
+                // Static initialization
                 setTransform({
                     translateX: '0%',
                     translateY: `${safeActiveIndex * 64}px`
@@ -170,7 +169,9 @@ function Sidebar({ onNavClick }: SidebarProps) {
     }, [isDetailPage, safeActiveIndex]);
 
     /**
-     * Navigates to a new route and notifies listeners.
+     * Executes navigation and triggers the optional click callback.
+     * @param {number} id - The ID of the nav item.
+     * @param {string} path - The target route.
      */
     const handleNavigation = (id: number, path: string) => {
         navigate(path);
@@ -182,7 +183,7 @@ function Sidebar({ onNavClick }: SidebarProps) {
     };
 
     /**
-     * Logs out the current user and redirects to login.
+     * Clears authentication state and routes the user to the login screen.
      */
     const handleLogout = () => {
         logout();
@@ -196,6 +197,7 @@ function Sidebar({ onNavClick }: SidebarProps) {
             </div>
 
             <nav className="flex-1 relative overflow-y-auto overflow-x-hidden">
+                {/* Selection Indicator Background */}
                 <div
                     className="absolute left-0 w-[80%] bg-[#F1F1F1] rounded-tr-2xl rounded-br-2xl"
                     style={{
@@ -224,6 +226,7 @@ function Sidebar({ onNavClick }: SidebarProps) {
                 </ul>
             </nav>
 
+            {/* User Profile and Actions Footer */}
             <div className="mt-4 mx-4 p-4 flex gap-2 bg-black/5 rounded-2xl flex-shrink-0">
                 <div className="profile-picture rounded-full bg-black/10 min-w-12 min-h-12 w-12 h-12 flex justify-center items-center">
                     <PersonIcon style={{ fontSize: '2.5rem', color: 'black', opacity: 0.5 }} />

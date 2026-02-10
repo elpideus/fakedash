@@ -52,18 +52,22 @@ Progetto al momento sotto attivo sviluppo!
 ## 🏗️ Architettura
 
 ### Struttura del Progetto
-```
+```text
 src/
-├── components/           # Componenti riutilizzabili
-│   ├── ContentTable.tsx  # Componente tabella avanzato
-│   ├── Buttons.tsx       # Bottoni temati
-│   ├── sidebar/          # Componenti sidebar
-│   └── (vari input)
-├── pages/               # Pagine dell'applicazione
-│   ├── DashboardPage.tsx # Layout principale
-│   ├── Login.tsx        # Pagina login
-│   └── Post.tsx         # Dettaglio post
-└── App.tsx              # Routing principale
+├── components/           # Componenti UI divisi per responsabilità
+│   ├── common/           # Componenti atomici e layout condivisi (Buttons, Dialogs, Drawer)
+│   ├── sidebar/          # Navigazione laterale
+│   ├── ContentTable.tsx  # Core engine delle tabelle basato su Material React Table
+│   └── ...               # Form di creazione e input specializzati
+├── context/              # Context API per l'integrazione del servizio API
+├── hooks/                # Logica di business (fetching, operazioni tabella, persistenza)
+├── pages/                # View principali (Login, Listing, Details)
+├── services/             # Client API centralizzato (Axios instance)
+├── store/                # Gestione stato globale con Zustand (Auth, Navigation, Table)
+├── types/                # Definizioni TypeScript globali
+├── utils/                # Utility pure (formattazione date, validazione, URL)
+├── App.tsx               # Configurazione Router e provider
+└── main.tsx              # Entry point e caricamento stili
 ```
 
 ### Design Pattern
@@ -307,7 +311,7 @@ DELETE /posts/:id       # Elimina post
     - [ ] Storybook per componenti
     - [ ] JSDoc completo
 
-## 📈 Progresso Generale: 70% completato
+## 📈 Progresso Generale: 75% completato
 
 Il progetto ha una base solida con l'architettura principale implementata.
 Mancano principalmente le funzionalità di creazione (drawer) e l'autenticazione completa.

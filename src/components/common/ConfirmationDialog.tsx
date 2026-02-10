@@ -7,48 +7,61 @@ import {
     DialogActions,
     CircularProgress
 } from '@mui/material';
-import {PrimaryButton, SecondaryButton} from "./Buttons.tsx";
-
+import { PrimaryButton, SecondaryButton } from "./Buttons.tsx";
 
 /**
- * Props for the ConfirmationDialog component.
+ * Interface defining the configuration properties for the ConfirmationDialog.
  */
 interface ConfirmationDialogProps {
-    /** Whether the dialog is open */
+    /** Controls the visibility of the dialog. */
     open: boolean;
-    /** Title displayed at the top of the dialog */
+    /** Header text displayed at the top of the modal. */
     title: string;
-    /** Main message shown inside the dialog */
+    /** Detailed body text explaining the consequence of the action. */
     message: string;
-    /**
-     * Callback executed when the confirm action is triggered.
-     * Can be synchronous or asynchronous.
+    /** * Function triggered when user clicks the primary action button.
+     * Supports async/await for network-dependent actions.
      */
     onConfirm: () => void | Promise<void>;
-    /** Callback executed when the dialog is canceled or closed */
+    /** Function triggered when user cancels or clicks outside the modal. */
     onCancel: () => void;
-    /** Text for the confirm button (default: "Conferma") */
+    /** Label for the confirmation button. Defaults to "Conferma". */
     confirmText?: string;
-    /** Text for the cancel button (default: "Annulla") */
+    /** Label for the cancellation button. Defaults to "Annulla". */
     cancelText?: string;
-    /**
-     * Visual severity of the confirm action.
-     * Affects confirm button styling.
+    /** Categorizes the action to determine color coding.
+     * - 'error': Red (Destructive actions)
+     * - 'warning': Amber (Risky actions)
+     * - 'info': Blue (Standard procedural updates)
+     * @default 'error'
      */
     severity?: 'error' | 'warning' | 'info';
-    /** Shows a loading state on the confirm button */
+    /** If true, replaces text with a spinner and disables all buttons. */
     isLoading?: boolean;
-    /** Disables the confirm button */
+    /** Manually prevents the confirm button from being clickable. */
     disableConfirm?: boolean;
-    /** Disables the cancel button */
+    /** Manually prevents the cancel button from being clickable. */
     disableCancel?: boolean;
 }
 
 /**
- * Generic confirmation dialog component.
+ * A reusable modal for high-stakes user decisions.
  *
- * Used to ask the user to confirm or cancel a critical action
- * (e.g. delete, overwrite, irreversible operations).
+ * Features accessibility via ARIA labels, built-in loading states,
+ * and severity-based styling using Tailwind classes.
+ *
+ * @component
+ * @example
+ * ```tsx
+ * <ConfirmationDialog
+ * open={isDeleteDialogOpen}
+ * title="Elimina Post"
+ * message="Sei sicuro di voler eliminare questo post? L'azione è irreversibile."
+ * severity="error"
+ * onConfirm={async () => await deleteApiCall()}
+ * onCancel={() => setOpen(false)}
+ * />
+ * ```
  */
 const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
                                                                    open,
@@ -63,16 +76,20 @@ const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
                                                                    disableConfirm = false,
                                                                    disableCancel = false
                                                                }) => {
-    /**
-     * Handles the confirm action.
-     * Awaits the onConfirm callback to support async operations.
-     */
-    const handleConfirm = async () => { await onConfirm() };
 
     /**
-     * Returns Tailwind classes based on the selected severity.
+     * Executes the confirmation callback.
+     * Wraps the call in an async wrapper to ensure Promise support.
      */
-    const getSeverityStyles = () => {
+    const handleConfirm = async () => {
+        await onConfirm();
+    };
+
+    /**
+     * Internal helper to map the 'severity' prop to Tailwind CSS utility classes.
+     * @returns {string} Tailwind class names for background and hover states.
+     */
+    const getSeverityStyles = (): string => {
         switch (severity) {
             case 'error':
                 return 'bg-red-600 hover:bg-red-700 text-white';

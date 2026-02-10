@@ -3,54 +3,65 @@ import { Link } from 'react-router-dom';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 
 /**
- * Props for the DetailPageLayout component.
+ * Configuration properties for the {@link DetailPageLayout} component.
  */
 interface DetailPageLayoutProps {
-    // Navigation
-    /** URL to navigate back to (used if onBack is not provided) */
+    // --- Navigation ---
+    /** The destination path for the back link.
+     * @example "/dashboard/posts"
+     */
     backUrl?: string;
-    /** Text displayed next to the back arrow */
+    /** The label displayed next to the back arrow icon. Defaults to "Torna indietro". */
     backText?: string;
-    /** Custom back navigation handler */
+    /** Optional custom click handler for the back button.
+     * If provided, this takes precedence over `backUrl`.
+     */
     onBack?: () => void;
 
-    // Header
-    /** Main page title */
+    // --- Header ---
+    /** The primary heading of the page. Supports strings or custom JSX elements. */
     title?: React.ReactNode;
-    /** Optional subtitle shown below the title */
+    /** Descriptive text or metadata displayed directly beneath the title. */
     subtitle?: React.ReactNode;
-    /** Optional actions rendered in the header (e.g. buttons, menus) */
+    /** Area for action components (e.g., Edit, Delete, Save buttons)
+     * rendered in the top-right corner.
+     */
     headerActions?: React.ReactNode;
-    // Content
 
-    /** Main page content */
+    // --- Content ---
+    /** The main body content to be rendered inside the white card. */
     children: React.ReactNode;
 
-    // States
-    /** Shows a loading spinner instead of the page content */
+    // --- States ---
+    /** If true, renders a centered loading spinner instead of the page content. */
     isLoading?: boolean;
-    /** Whether the page is currently in edit mode */
+    /** Indicates if the page is in an active editing state (hides the edit hint). */
     isEditing?: boolean;
-    /** Shows a hint suggesting double-click to edit */
+    /** If true, displays a footer hint indicating that double-clicking triggers edit mode. */
     showEditHint?: boolean;
-    /** Callback triggered on double-click of the content area */
+    /** Event handler triggered when the main content area is double-clicked. */
     onDoubleClick?: () => void;
 
-    // Styling
-    /** Extra classes applied to the outer container */
+    // --- Styling ---
+    /** Optional Tailwind classes or custom CSS for the outer wrapper. */
     className?: string;
-    /** Extra classes applied to the content card */
+    /** Optional Tailwind classes or custom CSS for the internal white card. */
     contentClassName?: string;
 }
 
 /**
- * Layout component for detail pages.
+ * A structural layout wrapper for entity detail pages.
  *
- * Provides:
- * - Optional back navigation
- * - Page header with title, subtitle and actions
- * - Loading state
- * - Editable content hint
+ * @remarks
+ * This component standardizes the "Detail" view across the application. It automatically
+ * handles breadcrumb-style navigation, header alignment, and loading states.
+ *
+ * **Navigation Priority:**
+ * 1. `onBack` (as a button)
+ * 2. `backUrl` (as a Router Link)
+ * 3. Disabled state (if neither is provided)
+ *
+ * @component
  */
 const DetailPageLayout: React.FC<DetailPageLayoutProps> = ({
                                                                backUrl,
@@ -69,7 +80,8 @@ const DetailPageLayout: React.FC<DetailPageLayoutProps> = ({
                                                            }) => {
 
     /**
-     * Renders a full-page loading state.
+     * Renders a centered, full-height loading state with an animated spinner.
+     * @returns {JSX.Element}
      */
     if (isLoading) {
         return (
@@ -83,11 +95,9 @@ const DetailPageLayout: React.FC<DetailPageLayoutProps> = ({
     }
 
     /**
-     * Renders the back button.
-     * Priority:
-     * 1. onBack handler
-     * 2. backUrl link
-     * 3. Disabled fallback
+     * Internal helper to determine the correct navigation element.
+     * Logic: prioritizes functional handlers over static links.
+     * @returns {JSX.Element}
      */
     const renderBackButton = () => {
         const backButtonContent = (
@@ -123,7 +133,7 @@ const DetailPageLayout: React.FC<DetailPageLayoutProps> = ({
             );
         }
 
-        // Fallback: disabled back button
+        // Fallback: visually disabled state
         return (
             <div className="inline-flex items-center gap-2 text-gray-400 cursor-not-allowed">
                 <ArrowBackIcon />
@@ -134,7 +144,7 @@ const DetailPageLayout: React.FC<DetailPageLayoutProps> = ({
 
     return (
         <div className={`p-8 h-full overflow-auto ${className}`}>
-            {/* Navigation + header actions */}
+            {/* Navigation row containing back button and action cluster */}
             <div className="flex justify-between items-center mb-6">
                 {renderBackButton()}
 
@@ -145,12 +155,12 @@ const DetailPageLayout: React.FC<DetailPageLayoutProps> = ({
                 )}
             </div>
 
-            {/* Main content container */}
+            {/* Main content card */}
             <article
                 className={`bg-white rounded-2xl p-8 shadow-sm border border-gray-200 ${contentClassName}`}
                 onDoubleClick={onDoubleClick}
             >
-                {/* Header */}
+                {/* Header Section */}
                 {(title || subtitle) && (
                     <header className="mb-8">
                         {title && (
@@ -170,12 +180,12 @@ const DetailPageLayout: React.FC<DetailPageLayoutProps> = ({
                     </header>
                 )}
 
-                {/* Page body */}
+                {/* Main Body Area */}
                 <div className="prose max-w-none">
                     {children}
                 </div>
 
-                {/* Edit hint */}
+                {/* UX Helper: Edit hint footer */}
                 {showEditHint && !isEditing && (
                     <div className="mt-6 pt-4 border-t border-gray-200">
                         <p className="text-sm text-gray-500 italic">

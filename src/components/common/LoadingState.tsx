@@ -2,7 +2,7 @@ import React from 'react';
 import { CircularProgress } from '@mui/material';
 
 /**
- * Props for the LoadingState component.
+ * Props for the {@link LoadingState} component.
  */
 interface LoadingStateProps {
     /** Optional loading message displayed below the spinner */

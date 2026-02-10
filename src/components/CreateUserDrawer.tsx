@@ -1,35 +1,59 @@
 import React, { useState } from 'react';
 import {
     TextField,
-    Button,
     Box,
     Alert,
     CircularProgress
 } from '@mui/material';
-import { useDashAPI } from '../context/APIContext';
+import { useDashAPI } from '../context/useDashAPI.tsx';
 import { validateUser } from '../utils/validationUtils';
 import Drawer from './common/Drawer';
-import {PrimaryButton, SecondaryButton} from "./common/Buttons.tsx";
+import { PrimaryButton, SecondaryButton } from "./common/Buttons.tsx";
 
+/**
+ * Properties for the CreateUserDrawer component.
+ */
 interface CreateUserDrawerProps {
+    /** Whether the drawer is open. */
     open: boolean;
+    /** Callback fired when the drawer closes. */
     onClose: () => void;
+    /** Optional callback executed after successful user creation. */
     onSuccess?: () => void;
 }
 
+/**
+ * A slide-out form for registering new users in the system.
+ * @remarks
+ * This component standardizes the user creation workflow by:
+ * 1. Handling input state for name, email, and password.
+ * 2. Running client-side validation via `validateUser`.
+ * 3. Handling API submission and updating the global context via `triggerRefresh`.
+ *
+ * @component
+ */
 const CreateUserDrawer: React.FC<CreateUserDrawerProps> = ({ open, onClose, onSuccess }) => {
     const { api, triggerRefresh } = useDashAPI();
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    // Form state
+    /**
+     * Local form state for user credentials and profile information.
+     */
     const [formData, setFormData] = useState({
         name: '',
         email: '',
         password: ''
     });
+
+    /**
+     * List of active validation error messages.
+     */
     const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
+    /**
+     * Updates form state on input change.
+     */
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
         setFormData(prev => ({
@@ -38,12 +62,15 @@ const CreateUserDrawer: React.FC<CreateUserDrawerProps> = ({ open, onClose, onSu
         }));
     };
 
+    /**
+     * Handles the user creation lifecycle: validation, API call, and UI feedback.
+     */
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
         setValidationErrors([]);
 
-        // Validate form
+        // Perform schema validation
         const errors = validateUser(formData);
         if (errors.length > 0) {
             setValidationErrors(errors);
@@ -61,20 +88,17 @@ const CreateUserDrawer: React.FC<CreateUserDrawerProps> = ({ open, onClose, onSu
 
             await api.createUser(userData);
 
-            // Refresh data
+            // Notify API Context to refetch users
             triggerRefresh();
 
-            // Reset form
+            // Clear form on success
             setFormData({
                 name: '',
                 email: '',
                 password: ''
             });
 
-            // Call success callback
             onSuccess?.();
-
-            // Close drawer
             onClose();
 
         } catch (err) {
@@ -85,6 +109,9 @@ const CreateUserDrawer: React.FC<CreateUserDrawerProps> = ({ open, onClose, onSu
         }
     };
 
+    /**
+     * Resets form state and closes the drawer, preventing action if loading.
+     */
     const handleClose = () => {
         if (!isLoading) {
             setFormData({
@@ -107,12 +134,14 @@ const CreateUserDrawer: React.FC<CreateUserDrawerProps> = ({ open, onClose, onSu
         >
             <form onSubmit={handleSubmit}>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    {/* Server/API Error Alert */}
                     {error && (
                         <Alert severity="error" onClose={() => setError(null)}>
                             {error}
                         </Alert>
                     )}
 
+                    {/* Client-side Validation Alerts */}
                     {validationErrors.length > 0 && (
                         <Alert severity="error">
                             <ul style={{ margin: 0, paddingLeft: '20px' }}>
@@ -161,6 +190,7 @@ const CreateUserDrawer: React.FC<CreateUserDrawerProps> = ({ open, onClose, onSu
                         required
                     />
 
+                    {/* Form Actions */}
                     <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', pt: 2 }}>
                         <SecondaryButton
                             onClick={handleClose}

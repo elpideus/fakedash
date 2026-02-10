@@ -1,11 +1,28 @@
 import React, { useState } from "react";
 
+/**
+ * Properties for the PasswordInput component.
+ * Extends standard HTML input attributes.
+ */
 interface PasswordInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+    /** If true, applies error styling to the borders and helper text. */
     error?: boolean;
+    /** Optional message displayed below the input field. */
     helperText?: string;
 }
 
+/**
+ * A specialized input component for sensitive password data.
+ *
+ * Features a built-in visibility toggle that switches the input type
+ * between 'password' and 'text'. Styled with Tailwind to match the
+ * dashboard's clean, rounded aesthetic.
+ *
+ * @component
+ */
 function PasswordInput({ className = "", error = false, helperText, ...props }: PasswordInputProps) {
+    /** * Local state to track whether the password should be masked or visible.
+     */
     const [showPassword, setShowPassword] = useState(false);
 
     return (
@@ -28,6 +45,8 @@ function PasswordInput({ className = "", error = false, helperText, ...props }: 
                     {showPassword ? "Nascondi" : "Mostra"}
                 </button>
             </div>
+
+            {/* Contextual Helper or Error Text */}
             {helperText && (
                 <p className={`text-sm mt-1 ml-2 ${error ? 'text-red-500' : 'text-black/50'}`}>
                     {helperText}

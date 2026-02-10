@@ -12,7 +12,7 @@ import DownloadIcon from '@mui/icons-material/Download';
 import type { MRT_ColumnDef, MRT_Row } from "material-react-table";
 
 // Import shared components and hooks
-import { useDashAPI } from '../context/APIContext.tsx';
+import { useDashAPI } from '../context/useDashAPI.tsx';
 import { useNavigationHelpers } from '../hooks/useNavigationHelpers.ts';
 import { useDeleteConfirmation, useBulkDeleteConfirmation } from '../hooks/useDeleteConfirmation.ts';
 import { useTableOperations } from '../hooks/useTableOperations.ts';

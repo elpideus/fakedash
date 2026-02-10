@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { TextField } from '@mui/material';
-import { useDashAPI } from '../context/APIContext.tsx';
+import { useDashAPI } from '../context/useDashAPI.tsx';
 
 // Import shared components and hooks
 import { useDeleteConfirmation } from "../hooks/useDeleteConfirmation.ts";

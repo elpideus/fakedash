@@ -1,23 +1,28 @@
 import React from 'react';
 
 /**
- * Props for the NavElement component.
+ * Interface defining the properties for the {@link NavElement} component.
  */
 interface NavElementProps {
-    /** Content of the navigation item (icon, label, etc.) */
+    /** The content to be rendered inside the list item, typically an icon and a label. */
     children: React.ReactNode;
-    /** Whether the navigation item is currently active */
+    /** Indicates if the item is currently selected.
+     * If true, applies a persistent horizontal offset.
+     * @default false
+     */
     active?: boolean;
-    /** Click handler for the navigation item */
+    /** Callback function executed when the navigation item is clicked. */
     onClick: () => void;
 }
 
 /**
- * Navigation list item component.
+ * A specialized list item for sidebar or menu navigation.
  *
- * Represents a single entry in a navigation menu.
- * Applies a visual offset when active and a subtle
- * hover animation when inactive.
+ * Uses CSS transitions to provide visual feedback:
+ * - **Active state:** Moves the content right by 24px (translate-x-6).
+ * - **Hover state:** Moves the content right by 8px (translate-x-2) if not active.
+ *
+ * @component
  */
 function NavElement({ children, active = false, onClick }: NavElementProps) {
     return (

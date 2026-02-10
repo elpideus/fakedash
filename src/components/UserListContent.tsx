@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback, useState } from "react";
+import React, {useMemo, useCallback, useState, type JSX} from "react";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import DownloadIcon from "@mui/icons-material/Download";
@@ -6,7 +6,7 @@ import { IconButton, Tooltip, Alert, Snackbar } from "@mui/material";
 import type { MRT_ColumnDef, MRT_Row } from "material-react-table";
 
 // Import shared components and hooks
-import { useDashAPI } from '../context/APIContext.tsx';
+import { useDashAPI } from '../context/useDashAPI.tsx';
 import { useNavigationHelpers } from '../hooks/useNavigationHelpers.ts';
 import { useDeleteConfirmation, useBulkDeleteConfirmation } from '../hooks/useDeleteConfirmation.ts';
 import { useTableOperations, createTextFilterFn } from '../hooks/useTableOperations.ts';
@@ -17,7 +17,7 @@ import ContentTable from "./ContentTable.tsx";
 import { PrimaryButton, SecondaryButton } from "./common/Buttons.tsx";
 import CreateUserDrawer from "./CreateUserDrawer.tsx";
 
-// Types
+/** User interface representing a user in the system */
 interface User {
   id: string | number;
   name: string;
@@ -25,7 +25,13 @@ interface User {
   postCount: number;
 }
 
-function UserListContent() {
+/**
+ * UserListContent component for displaying and managing a list of users
+ * Provides CRUD operations with a responsive table interface
+ * @component
+ * @returns {JSX.Element} The rendered user list component
+ */
+function UserListContent(): JSX.Element {
   const { api, isLoading: apiLoading, error: apiError, refreshTrigger } = useDashAPI();
   const navigation = useNavigationHelpers();
   const { isAuthenticated, isOwner } = useAuth();
@@ -41,12 +47,12 @@ function UserListContent() {
     severity: "success",
   });
 
-  // Delete states - typed properly instead of 'any'
+  /** User currently selected for deletion */
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
-
+  /** Controls the visibility of the create user drawer */
   const [isCreateDrawerOpen, setIsCreateDrawerOpen] = useState(false);
 
-  // Table operations
+  /** Table operations hook for managing filtering, sorting, and pagination */
   const tableOps = useTableOperations({
     initialPagination: { pageIndex: 0, pageSize: 10 },
     syncWithUrl: true,
@@ -54,14 +60,13 @@ function UserListContent() {
     tableKey: 'userTable'
   });
 
-  // Get all users - refreshTrigger ensures we get fresh data
+  /** Memoized array of all users, reversed to show newest first */
   const allUsers = useMemo(() => {
     void refreshTrigger; // Tells TS/ESLint this is intentionally getting used as a dependency
-    if (apiLoading || !api.isInitialized) {
-      return [];
-    }
+    // TODO: The line above is a workaround. Implement a better solution.
+    if (apiLoading || !api.isInitialized) return [];
 
-    // CHANGE: Create a copy and reverse the array to show newest users (added to end) first
+    // Create a copy and reverse the array to show newest users (added to end) first
     return [...api.getUsers()].reverse().map(user => ({
       id: user.id,
       name: user.name,
@@ -70,7 +75,11 @@ function UserListContent() {
     })) as User[];
   }, [api, apiLoading, refreshTrigger]);
 
-  // Prepare table data
+  /**
+   * Memoized table data with filtering, sorting, and pagination applied
+   * @property {User[]} users - Filtered and paginated users
+   * @property {number} totalCount - Total number of users after filtering
+   */
   const tableData = useMemo(() => {
     if (apiLoading || !api.isInitialized) {
       return { users: [], totalCount: 0 };
@@ -89,12 +98,16 @@ function UserListContent() {
     };
   }, [allUsers, apiLoading, api.isInitialized, tableOps]);
 
-  // Check if user can edit/delete a specific user
+  /**
+   * Determines if the current user can edit/delete a specific user
+   * @param {User} targetUser - The user to check permissions for
+   * @returns {boolean} True if the current user can edit/delete the target user
+   */
   const canEditDeleteUser = useCallback((targetUser: User) => {
     return isAuthenticated && isOwner(targetUser.id);
   }, [isAuthenticated, isOwner]);
 
-  // Delete confirmations
+  /** Single user deletion confirmation dialog */
   const singleDeleteConfirmation = useDeleteConfirmation({
     onConfirm: async () => {
       if (userToDelete && canEditDeleteUser(userToDelete)) {
@@ -126,6 +139,7 @@ function UserListContent() {
     message: `Sei sicuro di voler eliminare l'utente "${userToDelete?.name}"? Tutti i post associati a questo utente verranno eliminati. Questa azione non può essere annullata.`
   });
 
+  /** Bulk user deletion confirmation dialog */
   const bulkDeleteConfirmation = useBulkDeleteConfirmation({
     onConfirm: async () => {
       const selectedIds = Object.keys(tableOps.rowSelection);
@@ -158,7 +172,10 @@ function UserListContent() {
     itemName: 'utenti'
   });
 
-  // Handlers
+  /**
+   * Handles click on delete user button
+   * @param {User} user - The user to delete
+   */
   const handleDeleteUserClick = useCallback((user: User) => {
     if (canEditDeleteUser(user)) {
       setUserToDelete(user);
@@ -166,18 +183,29 @@ function UserListContent() {
     }
   }, [singleDeleteConfirmation, canEditDeleteUser]);
 
+  /**
+   * Navigates to user detail view
+   * @param {User} user - The user to view
+   */
   const handleViewUser = useCallback((user: User) => {
     navigation.navigateToUser(String(user.id));
   }, [navigation]);
 
+  /**
+   * Navigates to user edit view if user has permission
+   * @param {User} user - The user to edit
+   */
   const handleEditUser = useCallback((user: User) => {
     if (canEditDeleteUser(user)) {
       navigation.navigateToUser(String(user.id), true);
     }
   }, [navigation, canEditDeleteUser]);
 
-  // Table columns - Typed correctly to avoid 'any'
-  const columns = useMemo<MRT_ColumnDef<User>[]>(() => [
+  /**
+   * Table column definitions for the user list
+   * @type {MRT_ColumnDef<User>[]}
+   */
+  const columns: MRT_ColumnDef<User>[] = useMemo<MRT_ColumnDef<User>[]>(() => [
     {
       accessorKey: "name",
       header: "Nome",
@@ -201,7 +229,12 @@ function UserListContent() {
     },
   ], []);
 
-  // Row props - Typed correctly
+  /**
+   * Row properties including click handler for navigation
+   * @param {Object} params
+   * @param {MRT_Row<User>} params.row - The table row
+   * @returns {Object} Row properties
+   */
   const getRowProps = useCallback(({ row }: { row: MRT_Row<User> }) => ({
     onClick: (event: React.MouseEvent) => {
       const target = event.target as HTMLElement;
@@ -219,7 +252,10 @@ function UserListContent() {
     },
   }), [handleViewUser]);
 
-  // Top toolbar actions - only show if authenticated
+  /**
+   * Renders custom actions in the top toolbar
+   * @returns {JSX.Element} Toolbar action buttons
+   */
   const renderTopToolbarCustomActions = useCallback(() => (
       <div className="flex gap-4 items-center">
         {isAuthenticated && tableOps.selectedCount > 0 && (

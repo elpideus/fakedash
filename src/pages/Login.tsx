@@ -6,6 +6,16 @@ import TextInput from "../components/TextInput.tsx";
 import PasswordInput from "../components/PasswordInput.tsx";
 import { useAuth } from "../store/authStore.ts";
 
+/**
+ * LoginPage Component.
+ *
+ * Provides a user interface for authentication. Includes:
+ * - Client-side validation for email and password.
+ * - Integration with `authStore` for login logic.
+ * - Automatic redirection if the user is already authenticated or upon successful login.
+ * - Error handling via Material UI Alerts.
+ * @component
+ */
 function LoginPage() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -15,7 +25,11 @@ function LoginPage() {
     const navigate = useNavigate();
     const location = useLocation();
 
-    // Redirect if already authenticated
+    /**
+     * Effect: Redirects the user if they are already authenticated.
+     * Checks the navigation state to see if there is a 'from' path to return to,
+     * otherwise defaults to the root path.
+     */
     useEffect(() => {
         if (isAuthenticated) {
             const from = (location.state as any)?.from?.pathname || "/";
@@ -23,6 +37,12 @@ function LoginPage() {
         }
     }, [isAuthenticated, navigate, location]);
 
+    /**
+     * Validates the login form fields.
+     * - Email: Checks for existence and basic regex format.
+     * - Password: Checks for existence.
+     * @returns {boolean} True if the form is valid, false otherwise.
+     */
     const validateForm = () => {
         const errors: Record<string, string> = {};
 
@@ -40,6 +60,13 @@ function LoginPage() {
         return Object.keys(errors).length === 0;
     };
 
+    /**
+     * Handles the form submission event.
+     * Prevents default behavior, clears previous errors, validates the form,
+     * and attempts to log in via the auth store.
+     * @param {React.FormEvent} e - The form submission event.
+     * @async
+     */
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         clearError();
@@ -77,6 +104,7 @@ function LoginPage() {
                 onSubmit={handleSubmit}
                 className="bg-[#fcfdfe] w-[30vw] max-w-[660px] shadow-xl rounded-2xl p-8 flex flex-col"
             >
+                {/* Error feedback from the Auth Store */}
                 {error && (
                     <Alert
                         severity="error"
@@ -105,7 +133,7 @@ function LoginPage() {
                 <div className="mb-2">
                     <div className="flex justify-between items-center ml-2 opacity-80 mb-2">
                         <label htmlFor="password">Password</label>
-                        <a href="/forgot-password" className="text-sm text-black/50 hover:underline mr-2">
+                        <a href="/forgot-password" university-className="text-sm text-black/50 hover:underline mr-2">
                             Recupera password
                         </a>
                     </div>

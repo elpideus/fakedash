@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback } from 'react';
+import React, {useMemo, useCallback, type JSX} from 'react';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import DownloadIcon from '@mui/icons-material/Download';
@@ -6,7 +6,7 @@ import { IconButton, Tooltip, Alert, Snackbar } from '@mui/material';
 import type {MRT_ColumnDef} from 'material-react-table';
 
 // Import shared components and hooks
-import { useDashAPI } from '../context/APIContext.tsx';
+import { useDashAPI } from '../context/useDashAPI.tsx';
 import { useNavigationHelpers } from '../hooks/useNavigationHelpers.ts';
 import { useDeleteConfirmation, useBulkDeleteConfirmation } from '../hooks/useDeleteConfirmation.ts';
 import { useTableOperations } from '../hooks/useTableOperations.ts';
@@ -18,13 +18,14 @@ import ContentTable from "./ContentTable.tsx";
 import { PrimaryButton, SecondaryButton } from "./common/Buttons.tsx";
 import CreatePostDrawer from "./CreatePostDrawer.tsx";
 
-
+/** Props for the PostListContent component */
 interface PostListContentProps {
     pagination: { pageIndex: number; pageSize: number };
     onPaginationChange: (pagination: { pageIndex: number; pageSize: number }) => void;
     isPostDetailPage?: boolean;
 }
 
+/** Represents a blog post in the system */
 interface Post {
     id: string | number;
     title: string;
@@ -34,11 +35,29 @@ interface Post {
     createdAt: string;
     delete?: () => Promise<void>;
 }
-
-function PostListContent({ pagination, onPaginationChange }: PostListContentProps) {
-    const { api, isLoading: apiLoading, error: apiError, refreshTrigger } = useDashAPI();
+/**
+ * Main component for displaying and managing a list of blog posts
+ *
+ * This component provides a feature-rich table interface for viewing, searching,
+ * sorting, and managing blog posts. It includes authentication-based permissions,
+ * bulk operations, and integration with various application hooks.
+ *
+ * @component
+ * @param {PostListContentProps} props - Component props containing pagination controls
+ * @returns {JSX.Element} The rendered post management interface
+ *
+ * @example
+ * ```tsx
+ * <PostListContent
+ *   pagination={{ pageIndex: 0, pageSize: 10 }}
+ *   onPaginationChange={handlePaginationChange}
+ * />
+ * ```
+ */
+function PostListContent({ pagination, onPaginationChange }: PostListContentProps): JSX.Element {
+    const { api, isLoading: apiLoading, refreshTrigger } = useDashAPI();
     const navigation = useNavigationHelpers();
-    const { isAuthenticated, isOwner } = useAuth(); // Add this
+    const { isAuthenticated, isOwner } = useAuth();
 
     // Snackbar state
     const [snackbar, setSnackbar] = React.useState<{
@@ -56,8 +75,12 @@ function PostListContent({ pagination, onPaginationChange }: PostListContentProp
 
     const [isCreateDrawerOpen, setIsCreateDrawerOpen] = React.useState(false);
 
-    // Table operations - include refreshTrigger in dependencies to reset on data changes
-    const tableOps = useTableOperations({
+    /**
+     * Table operations hook for managing table state including pagination,
+     * filtering, sorting, and row selection
+     * @type {ReturnType<typeof useTableOperations>}
+     */
+    const tableOps: ReturnType<typeof useTableOperations> = useTableOperations({
         initialPagination: pagination,
         onPaginationChange: onPaginationChange,
         syncWithUrl: true,
@@ -65,14 +88,20 @@ function PostListContent({ pagination, onPaginationChange }: PostListContentProp
         tableKey: 'postTable'
     });
 
-    // Get all posts - refreshTrigger ensures we get fresh data
-    const posts = useMemo(() => {
+    /**
+     * Memoized array of all posts, sorted with newest first
+     * @type {Post[]}
+     */
+    const posts: Post[] = useMemo(() => {
         // Get all posts and reverse to show newest first (same as UserListContent)
         return [...api.getPosts()].reverse() as Post[];
     }, [api, refreshTrigger]);
 
-    // Prepare table data
-    const tableData = useMemo(() => {
+    /**
+     * Memoized table data with filtering, sorting, and pagination applied
+     * @type {{posts: Post[], totalCount: number}}
+     */
+    const tableData: { posts: Post[]; totalCount: number; } = useMemo(() => {
         if (apiLoading || !api.isInitialized) {
             return { posts: [] as Post[], totalCount: 0 };
         }
@@ -99,8 +128,11 @@ function PostListContent({ pagination, onPaginationChange }: PostListContentProp
         };
     }, [posts, apiLoading, api.isInitialized, tableOps]);
 
-    // Delete confirmations - only show for posts owned by current user
-    const singleDeleteConfirmation = useDeleteConfirmation({
+    /**
+     * Single post delete confirmation dialog handler
+     * @type {ReturnType<typeof useDeleteConfirmation>}
+     */
+    const singleDeleteConfirmation: ReturnType<typeof useDeleteConfirmation> = useDeleteConfirmation({
         onConfirm: async () => {
             if (postToDelete && postToDelete.delete) {
                 try {
@@ -128,7 +160,11 @@ function PostListContent({ pagination, onPaginationChange }: PostListContentProp
         message: `Sei sicuro di voler eliminare il post "${postToDelete?.title}"? Questa azione non può essere annullata.`
     });
 
-    const bulkDeleteConfirmation = useBulkDeleteConfirmation({
+    /**
+     * Bulk delete confirmation dialog handler for multiple posts
+     * @type {ReturnType<typeof useBulkDeleteConfirmation>}
+     */
+    const bulkDeleteConfirmation: ReturnType<typeof useBulkDeleteConfirmation> = useBulkDeleteConfirmation({
         onConfirm: async () => {
             const selectedIds = Object.keys(tableOps.rowSelection);
             try {
@@ -160,12 +196,19 @@ function PostListContent({ pagination, onPaginationChange }: PostListContentProp
         itemName: 'post'
     });
 
-    // Check if user can edit/delete a specific post
+    /**
+     * Checks if the current authenticated user has permission to edit or delete a specific post
+     * @param {Post} post - The post to check permissions for
+     * @returns {boolean} True if user can edit/delete the post
+     */
     const canEditDeletePost = useCallback((post: Post) => {
         return isAuthenticated && isOwner(post.userId);
     }, [isAuthenticated, isOwner]);
 
-    // Handlers
+    /**
+     * Handles the click event to delete a single post
+     * @param {Post} post - The post to delete
+     */
     const handleDeletePostClick = useCallback((post: Post) => {
         if (canEditDeletePost(post)) {
             setPostToDelete(post);
@@ -173,22 +216,37 @@ function PostListContent({ pagination, onPaginationChange }: PostListContentProp
         }
     }, [singleDeleteConfirmation, canEditDeletePost]);
 
+    /**
+     * Navigates to view a specific post
+     * @param {Post} post - The post to view
+     */
     const handleViewPost = useCallback((post: Post) => {
         navigation.navigateToPost(post.id);
     }, [navigation]);
 
+    /**
+     * Navigates to edit a specific post (requires permissions)
+     * @param {Post} post - The post to edit
+     */
     const handleEditPost = useCallback((post: Post) => {
         if (canEditDeletePost(post)) {
             navigation.navigateToPost(post.id, true);
         }
     }, [navigation, canEditDeletePost]);
 
+    /**
+     * Navigates to view the profile of a post's author
+     * @param {number} userId - The ID of the author/user
+     */
     const handleViewAuthor = useCallback((userId: number) => {
         navigation.navigateToUser(userId);
     }, [navigation]);
 
-    // Table columns
-    const columns = useMemo<MRT_ColumnDef<Post>[]>(() => [
+    /**
+     * Table column definitions for the posts table
+     * @type {MRT_ColumnDef<Post>[]}
+     */
+    const columns: MRT_ColumnDef<Post>[] = useMemo<MRT_ColumnDef<Post>[]>(() => [
         {
             accessorKey: 'title',
             header: 'Titolo',
@@ -229,7 +287,12 @@ function PostListContent({ pagination, onPaginationChange }: PostListContentProp
         },
     ], [handleViewAuthor]);
 
-    // Row props
+    /**
+     * Returns props for table rows including click handlers and styles
+     * @param {Object} param0 - Row data
+     * @param {Object} param0.row - Row object containing the post
+     * @returns {Object} Row properties for MUI table
+     */
     const getRowProps = useCallback(({ row }: { row: { original: Post } }) => ({
         onClick: (event: React.MouseEvent) => {
             const target = event.target as HTMLElement;
@@ -245,7 +308,11 @@ function PostListContent({ pagination, onPaginationChange }: PostListContentProp
         },
     }), [handleViewPost]);
 
-    // Detail panel
+    /**
+     * Renders the detail panel/expanded row view for a post
+     * @param {Post} post - The post to render details for
+     * @returns {JSX.Element} Detail panel JSX
+     */
     const detailPanel = useCallback((post: Post) => {
         const previewLength = 300;
         const showPreview = post.content.length > previewLength;
@@ -294,7 +361,10 @@ function PostListContent({ pagination, onPaginationChange }: PostListContentProp
         );
     }, [handleViewPost]);
 
-    // Top toolbar actions - only show if user is authenticated
+    /**
+     * Renders custom actions in the table's top toolbar
+     * @returns {JSX.Element} Toolbar actions JSX
+     */
     const renderTopToolbarCustomActions = useCallback(() => (
         <div className="flex gap-4 items-center">
             {isAuthenticated && tableOps.selectedCount > 0 && (
