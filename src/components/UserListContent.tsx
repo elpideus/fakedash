@@ -10,11 +10,12 @@ import { useDashAPI } from '../context/APIContext.tsx';
 import { useNavigationHelpers } from '../hooks/useNavigationHelpers.ts';
 import { useDeleteConfirmation, useBulkDeleteConfirmation } from '../hooks/useDeleteConfirmation.ts';
 import { useTableOperations, createTextFilterFn } from '../hooks/useTableOperations.ts';
-import { useAuth } from "../store/authStore.ts"; // Add this import
+import { useAuth } from "../store/authStore.ts";
 
 import ConfirmationDialog from "./common/ConfirmationDialog.tsx";
 import ContentTable from "./ContentTable.tsx";
 import { PrimaryButton, SecondaryButton } from "./common/Buttons.tsx";
+import CreateUserDrawer from "./CreateUserDrawer.tsx";
 
 // Types
 interface User {
@@ -27,7 +28,7 @@ interface User {
 function UserListContent() {
   const { api, isLoading: apiLoading, error: apiError, refreshTrigger } = useDashAPI();
   const navigation = useNavigationHelpers();
-  const { isAuthenticated, isOwner, user } = useAuth(); // Add this
+  const { isAuthenticated, isOwner } = useAuth();
 
   // Snackbar state
   const [snackbar, setSnackbar] = useState<{
@@ -43,6 +44,8 @@ function UserListContent() {
   // Delete states - typed properly instead of 'any'
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
 
+  const [isCreateDrawerOpen, setIsCreateDrawerOpen] = useState(false);
+
   // Table operations
   const tableOps = useTableOperations({
     initialPagination: { pageIndex: 0, pageSize: 10 },
@@ -53,16 +56,19 @@ function UserListContent() {
 
   // Get all users - refreshTrigger ensures we get fresh data
   const allUsers = useMemo(() => {
+    void refreshTrigger; // Tells TS/ESLint this is intentionally getting used as a dependency
     if (apiLoading || !api.isInitialized) {
       return [];
     }
-    return api.getUsers().map(user => ({
+
+    // CHANGE: Create a copy and reverse the array to show newest users (added to end) first
+    return [...api.getUsers()].reverse().map(user => ({
       id: user.id,
       name: user.name,
       email: user.email,
       postCount: user.posts.length
     })) as User[];
-  }, [api, apiLoading]);
+  }, [api, apiLoading, refreshTrigger]);
 
   // Prepare table data
   const tableData = useMemo(() => {
@@ -71,11 +77,11 @@ function UserListContent() {
     }
 
     // Filter function for users
-    const filterFn = createTextFilterFn<User>(['name', 'email']);
+    const filterFn = createTextFilterFn<User>(['name', 'email']) as unknown as (item: Record<string, unknown>, filter: string) => boolean;
     const filteredUsers = tableOps.applyFiltersAndSorting(allUsers, filterFn);
 
     const totalCount = filteredUsers.length;
-    const paginatedUsers = tableOps.applyPagination(filteredUsers);
+    const paginatedUsers = tableOps.applyPagination(filteredUsers) as User[];
 
     return {
       users: paginatedUsers,
@@ -227,7 +233,12 @@ function UserListContent() {
             </Tooltip>
         )}
         {isAuthenticated && (
-            <PrimaryButton startIcon={<AddIcon />}>Nuovo Utente</PrimaryButton>
+            <PrimaryButton
+                startIcon={<AddIcon />}
+                onClick={() => setIsCreateDrawerOpen(true)}
+            >
+              Nuovo Utente
+            </PrimaryButton>
         )}
         <SecondaryButton>
           <DownloadIcon />
@@ -315,6 +326,18 @@ function UserListContent() {
             cancelText="Annulla"
             severity="error"
             isLoading={bulkDeleteConfirmation.isDeleting}
+        />
+
+        <CreateUserDrawer
+            open={isCreateDrawerOpen}
+            onClose={() => setIsCreateDrawerOpen(false)}
+            onSuccess={() => {
+              setSnackbar({
+                open: true,
+                message: 'Utente creato con successo!',
+                severity: 'success'
+              });
+            }}
         />
 
         <Snackbar

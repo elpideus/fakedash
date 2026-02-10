@@ -259,14 +259,14 @@ DELETE /posts/:id       # Elimina post
     - [x] Visualizzazione Material React Table con paginazione e filtri
     - [x] Navigazione al dettaglio singolo post (`Post.tsx`)
     - [x] Modifica ed eliminazione di un post
-    - [ ] Creazione nuovo post tramite Drawer
+    - [x] Creazione nuovo post tramite Drawer
     - [x] Preservazione stato tabella al ritorno dal dettaglio
 
 - [ ] **Utenti - Funzionalità Base**
     - [x] Lista utenti con tabella (`UserListContent.tsx`)
     - [x] Visualizzazione Material React Table con paginazione e filtri
     - [x] Navigazione al dettaglio singolo utente
-    - [ ] Creazione nuovo utente tramite Drawer
+    - [x] Creazione nuovo utente tramite Drawer
     - [x] Modifica ed eliminazione utente
     - [x] Mostrare i posts dell'utente nel dettaglio
     - [x] Preservazione stato tabella al ritorno dal dettaglio

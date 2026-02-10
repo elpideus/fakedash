@@ -11,11 +11,12 @@ import { useNavigationHelpers } from '../hooks/useNavigationHelpers.ts';
 import { useDeleteConfirmation, useBulkDeleteConfirmation } from '../hooks/useDeleteConfirmation.ts';
 import { useTableOperations } from '../hooks/useTableOperations.ts';
 import { formatDate } from '../utils/dateUtils.ts';
-import { useAuth } from "../store/authStore.ts"; // Add this import
+import { useAuth } from "../store/authStore.ts";
 
 import ConfirmationDialog from "./common/ConfirmationDialog.tsx";
 import ContentTable from "./ContentTable.tsx";
 import { PrimaryButton, SecondaryButton } from "./common/Buttons.tsx";
+import CreatePostDrawer from "./CreatePostDrawer.tsx";
 
 
 interface PostListContentProps {
@@ -53,6 +54,8 @@ function PostListContent({ pagination, onPaginationChange }: PostListContentProp
     // Delete states
     const [postToDelete, setPostToDelete] = React.useState<Post | null>(null);
 
+    const [isCreateDrawerOpen, setIsCreateDrawerOpen] = React.useState(false);
+
     // Table operations - include refreshTrigger in dependencies to reset on data changes
     const tableOps = useTableOperations({
         initialPagination: pagination,
@@ -64,13 +67,14 @@ function PostListContent({ pagination, onPaginationChange }: PostListContentProp
 
     // Get all posts - refreshTrigger ensures we get fresh data
     const posts = useMemo(() => {
-        return api.getPosts();
-    }, [api]);
+        // Get all posts and reverse to show newest first (same as UserListContent)
+        return [...api.getPosts()].reverse() as Post[];
+    }, [api, refreshTrigger]);
 
     // Prepare table data
     const tableData = useMemo(() => {
         if (apiLoading || !api.isInitialized) {
-            return { posts: [], totalCount: 0 };
+            return { posts: [] as Post[], totalCount: 0 };
         }
 
         const filteredPosts = tableOps.applyFiltersAndSorting(posts, (post, filter) => {
@@ -90,7 +94,7 @@ function PostListContent({ pagination, onPaginationChange }: PostListContentProp
         const paginatedPosts = tableOps.applyPagination(filteredPosts);
 
         return {
-            posts: paginatedPosts,
+            posts: paginatedPosts as Post[],
             totalCount
         };
     }, [posts, apiLoading, api.isInitialized, tableOps]);
@@ -304,22 +308,17 @@ function PostListContent({ pagination, onPaginationChange }: PostListContentProp
                 </Tooltip>
             )}
             {isAuthenticated && (
-                <PrimaryButton startIcon={<AddIcon />} className="font-medium">
+                <PrimaryButton
+                    startIcon={<AddIcon />}
+                    className="font-medium"
+                    onClick={() => setIsCreateDrawerOpen(true)}
+                >
                     Crea Post
                 </PrimaryButton>
             )}
             <SecondaryButton><DownloadIcon /></SecondaryButton>
         </div>
     ), [tableOps.selectedCount, bulkDeleteConfirmation, isAuthenticated]);
-
-    // Show API error
-    if (apiError) {
-        return (
-            <div className="p-4 text-red-600 bg-red-100 rounded-lg">
-                Impossibile caricare i dati. Assicurati che `json-server --watch db.json --port 3001` sia attivo.
-            </div>
-        );
-    }
 
     return (
         <>
@@ -398,6 +397,19 @@ function PostListContent({ pagination, onPaginationChange }: PostListContentProp
                 cancelText="Annulla"
                 severity="error"
                 isLoading={bulkDeleteConfirmation.isDeleting}
+            />
+
+            <CreatePostDrawer
+                open={isCreateDrawerOpen}
+                onClose={() => setIsCreateDrawerOpen(false)}
+                onSuccess={() => {
+                    // Show success message or refresh data
+                    setSnackbar({
+                        open: true,
+                        message: 'Post creato con successo!',
+                        severity: 'success'
+                    });
+                }}
             />
 
             {/* Snackbar */}

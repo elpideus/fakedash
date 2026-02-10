@@ -237,4 +237,32 @@ export class FakeDashAPI {
     notifyListeners() {
         this._listeners.forEach(listener => listener());
     }
+
+    /** Create a new post */
+    async createPost(postData: Omit<RawPost, 'id'>): Promise<Post> {
+        try {
+            const response = await axios.post(`${BASE_URL}/posts`, postData);
+            const newPost = new Post(response.data, this);
+            this._posts.push(newPost);
+            this.notifyListeners();
+            return newPost;
+        } catch (error) {
+            console.error("Failed to create post", error);
+            throw error;
+        }
+    }
+
+    /** Create a new user */
+    async createUser(userData: Omit<RawUser, 'id'>): Promise<User> {
+        try {
+            const response = await axios.post(`${BASE_URL}/users`, userData);
+            const newUser = new User(response.data, this);
+            this._users.push(newUser);
+            this.notifyListeners();
+            return newUser;
+        } catch (error) {
+            console.error("Failed to create user", error);
+            throw error;
+        }
+    }
 }

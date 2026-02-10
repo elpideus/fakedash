@@ -9,20 +9,47 @@ import {
 } from '@mui/material';
 import {PrimaryButton, SecondaryButton} from "./Buttons.tsx";
 
+
+/**
+ * Props for the ConfirmationDialog component.
+ */
 interface ConfirmationDialogProps {
+    /** Whether the dialog is open */
     open: boolean;
+    /** Title displayed at the top of the dialog */
     title: string;
+    /** Main message shown inside the dialog */
     message: string;
+    /**
+     * Callback executed when the confirm action is triggered.
+     * Can be synchronous or asynchronous.
+     */
     onConfirm: () => void | Promise<void>;
+    /** Callback executed when the dialog is canceled or closed */
     onCancel: () => void;
+    /** Text for the confirm button (default: "Conferma") */
     confirmText?: string;
+    /** Text for the cancel button (default: "Annulla") */
     cancelText?: string;
+    /**
+     * Visual severity of the confirm action.
+     * Affects confirm button styling.
+     */
     severity?: 'error' | 'warning' | 'info';
+    /** Shows a loading state on the confirm button */
     isLoading?: boolean;
+    /** Disables the confirm button */
     disableConfirm?: boolean;
+    /** Disables the cancel button */
     disableCancel?: boolean;
 }
 
+/**
+ * Generic confirmation dialog component.
+ *
+ * Used to ask the user to confirm or cancel a critical action
+ * (e.g. delete, overwrite, irreversible operations).
+ */
 const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
                                                                    open,
                                                                    title,
@@ -36,8 +63,15 @@ const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
                                                                    disableConfirm = false,
                                                                    disableCancel = false
                                                                }) => {
+    /**
+     * Handles the confirm action.
+     * Awaits the onConfirm callback to support async operations.
+     */
     const handleConfirm = async () => { await onConfirm() };
 
+    /**
+     * Returns Tailwind classes based on the selected severity.
+     */
     const getSeverityStyles = () => {
         switch (severity) {
             case 'error':

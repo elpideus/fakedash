@@ -18,53 +18,91 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 
 /** Defines the Content Table Properties structure */
 interface ContentTableProps<T extends MRT_RowData> {
+    /** Column definitions following Material React Table specification. */
     columns: MRT_ColumnDef<T>[];
+    /** The array of data objects to be displayed in the table. */
     data: T[];
+    /** Total number of rows available on the server (for manual pagination). */
     rowCount: number;
+    /** Current state of pagination (pageIndex and pageSize). */
     pagination: MRT_PaginationState;
+    /** Callback triggered when pagination state changes. */
     onPaginationChange: (pagination: MRT_PaginationState) => void;
+    /** Flag to show the global loading overlay. */
     isLoading: boolean;
+    /** Flag to show progress bars during background data fetching. */
     isFetching: boolean;
+    /** Object representing the currently selected rows. */
     rowSelection?: MRT_RowSelectionState;
+    /** Callback triggered when row selection state changes. */
     onRowSelectionChange?: (rowSelection: MRT_RowSelectionState) => void;
+    /** Whether to enable checkboxes for row selection. */
     enableRowSelection?: boolean;
+    /** Whether to enable the built-in actions column. */
     enableRowActions?: boolean;
+    /** Whether to show the 'View' icon in the actions column. */
     showViewAction?: boolean;
+    /** Whether to show the 'Edit' icon in the actions column. */
     showEditAction?: boolean;
+    /** Whether to show the 'Delete' icon in the actions column. */
     showDeleteAction?: boolean;
+    /** Callback function triggered when the Edit action is clicked. */
     onEdit?: (row: T) => void;
+    /** Callback function triggered when the Delete action is clicked. */
     onDelete?: (row: T) => void;
+    /** Callback function triggered when the View action is clicked. */
     onView?: (row: T) => void;
+    /** Optional function to render a detail panel when a row is expanded. */
     detailPanel?: (row: T) => React.ReactNode;
+    /** Custom styling or attributes for the table body rows. */
     muiTableBodyRowProps?: (props: {
         row: MRT_Row<T>;
         table: MRT_TableInstance<T>;
         staticRowIndex: number;
         isDetailPanel?: boolean;
     }) => React.HTMLAttributes<HTMLTableRowElement>;
+    /** The title displayed in the header area. */
     title: string;
+    /** Custom text for the total count display (e.g., "50 results found"). */
     totalCountText?: string;
+    /** Number of currently selected items. */
     selectedCount?: number;
+    /** Function to render custom buttons/actions in the top right toolbar. */
     renderTopToolbarCustomActions?: () => React.ReactNode;
+    /** Current value of the global search filter. */
     globalFilter?: string;
+    /** Callback triggered when the global filter value changes. */
     onGlobalFilterChange?: (filter: string) => void;
+    /** Whether the search input is currently visible. */
     showGlobalFilter?: boolean;
+    /** Callback triggered when the visibility of the global filter changes. */
     onShowGlobalFilterChange?: (show: boolean) => void;
+    /** Custom function to get a unique ID for each row. */
     getRowId?: (row: T) => string;
-    // New props for tracking additional table states
+    /** Current sorting state. */
     sorting?: MRT_SortingState;
+    /** Callback triggered when sorting changes. */
     onSortingChange?: (sorting: MRT_SortingState) => void;
+    /** Array representing the order of columns. */
     columnOrder?: MRT_ColumnOrderState;
+    /** Callback triggered when column order is changed. */
     onColumnOrderChange?: (columnOrder: MRT_ColumnOrderState) => void;
+    /** State for hidden/visible columns. */
     columnVisibility?: MRT_VisibilityState;
+    /** Callback triggered when column visibility changes. */
     onColumnVisibilityChange?: (columnVisibility: MRT_VisibilityState) => void;
+    /** Configuration for pinned columns (left or right). */
     columnPinning?: { left?: string[], right?: string[] };
+    /** Callback triggered when column pinning changes. */
     onColumnPinningChange?: (columnPinning: { left?: string[], right?: string[] }) => void;
-    // Scroll position props
+    /** Vertical scroll position of the table container. */
     scrollPosition?: number;
+    /** Callback triggered after scrolling to save the position. */
     onScrollPositionChange?: (scrollPosition: number) => void;
+    /** Unique key to track this table instance (useful for persistent state). */
     tableKey?: string;
-    isRowActionEnabled?: (row: T) => boolean;// Unique key for scroll tracking
+    /** Function to determine if actions should be visible for a specific row. */
+    isRowActionEnabled?: (row: T) => boolean;
 }
 
 function ContentTable<T extends MRT_RowData>({
@@ -113,7 +151,10 @@ function ContentTable<T extends MRT_RowData>({
     const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const isInitialScrollDone = useRef(false);
 
-    /** Save scroll position with debounce */
+    /**
+     * Handles the scroll event and triggers the debounced
+     * `onScrollPositionChange` callback.
+     */
     const handleScroll = () => {
         if (!tableContainerRef.current) return;
 
@@ -128,7 +169,7 @@ function ContentTable<T extends MRT_RowData>({
         }, 150); // Debounce to prevent too many updates
     };
 
-    /** Restore scroll position when data loads */
+    /** Restores scroll position when data has finished loading */
     useEffect(() => {
         if (!isLoading && !isFetching && tableContainerRef.current && scrollPosition > 0 && !isInitialScrollDone.current) {
             requestAnimationFrame(() => {
@@ -140,12 +181,12 @@ function ContentTable<T extends MRT_RowData>({
         }
     }, [isLoading, isFetching, scrollPosition]);
 
-    /** Reset initial scroll flag when pagination changes */
+    /** Resets the scroll-done flag when moving to a different page */
     useEffect(() => {
         isInitialScrollDone.current = false;
     }, [pagination.pageIndex]);
 
-    /** Cleanup timeout on unmount */
+    /** Standard cleanup for the scroll debounce timer */
     useEffect(() => {
         return () => {
             if (scrollTimeoutRef.current) {
@@ -154,7 +195,6 @@ function ContentTable<T extends MRT_RowData>({
         };
     }, []);
 
-    /** Actions Area */
     const actionColumn: MRT_ColumnDef<T> = {
         id: 'actions',
         header: 'Azioni',
@@ -163,9 +203,9 @@ function ContentTable<T extends MRT_RowData>({
         enableSorting: false,
         Cell: ({ row }) => {
             // Check if actions should be enabled for this row
-            // TODO: Fix error on line below
-            const isActionEnabled = isRowActionEnabled(row.original);
-            if (!isActionEnabled) return null; // Don't show actions for this row
+            // If it is provided, call it with the row data.
+            const isActionEnabled = isRowActionEnabled ? isRowActionEnabled(row.original) : true;
+            if (!isActionEnabled) return null;
 
             return (
                 <div className="flex gap-1">

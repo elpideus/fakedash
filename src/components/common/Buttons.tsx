@@ -1,6 +1,8 @@
 import Button from "@mui/material/Button";
 import { styled } from "@mui/material/styles";
 
+/** Primary button.
+ * Used for the main call-to-action or the most important user action. */
 export const PrimaryButton = styled(Button)(() => ({
     backgroundColor: "#000",
     color: "#fff",
@@ -13,6 +15,8 @@ export const PrimaryButton = styled(Button)(() => ({
     }
 }));
 
+/** Secondary action button.
+ * Used for alternative or less prominent actions alongside a primary CTA. */
 export const SecondaryButton = styled(Button)(() => ({
     backgroundColor: "#fff",
     color: "#000",

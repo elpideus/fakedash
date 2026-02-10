@@ -8,7 +8,6 @@ import {
   Alert,
   Snackbar
 } from '@mui/material';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import DownloadIcon from '@mui/icons-material/Download';
 import type { MRT_ColumnDef, MRT_Row } from "material-react-table";
 
@@ -25,6 +24,7 @@ import LoadingState from "../components/common/LoadingState.tsx";
 import ErrorState from "../components/common/ErrorState.tsx";
 import ConfirmationDialog from "../components/common/ConfirmationDialog.tsx";
 import HeaderActions from "../components/common/HeaderActions.tsx";
+import DetailPageLayout from "../components/common/DetailPageLayout.tsx";
 import ContentTable from "../components/ContentTable.tsx";
 import { SecondaryButton } from "../components/common/Buttons.tsx";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -35,6 +35,7 @@ interface Post {
   title: string;
   content: string;
   createdAt: string;
+  userId: number; // Added this line
 }
 
 interface EditedUserState {
@@ -47,7 +48,7 @@ function UserDetails() {
   const { userId } = useParams<{ userId: string }>();
   const { api, isLoading: apiLoading, error: apiError, refreshTrigger } = useDashAPI();
   const navigation = useNavigationHelpers();
-  const { isAuthenticated, isOwner } = useAuth(); // Add this
+  const { isAuthenticated, isOwner } = useAuth();
 
   // User and Posts state - use refreshTrigger to get fresh data
   const user = userId ? api.getUser(userId) : null;
@@ -59,7 +60,7 @@ function UserDetails() {
   // Edit state from URL
   const [isEditing, setIsEditing] = useState(false);
   const [initialized, setInitialized] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false); // Track if we're in the process of deleting
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Initialize isEditing from URL on component mount
   useEffect(() => {
@@ -104,7 +105,7 @@ function UserDetails() {
   // Delete confirmations - only if user is owner
   const userDeleteConfirmation = useDeleteConfirmation({
     onConfirm: async () => {
-      setIsDeleting(true); // Set deleting flag
+      setIsDeleting(true);
       if (user) {
         try {
           await user.delete();
@@ -118,7 +119,7 @@ function UserDetails() {
           }, 1000);
         } catch (error) {
           console.error('Error deleting user:', error);
-          setIsDeleting(false); // Reset on error
+          setIsDeleting(false);
         }
       }
     },
@@ -132,7 +133,6 @@ function UserDetails() {
       try {
         const deletePromises = selectedIds.map(id => {
           const post = api.getPost(id);
-          // Check if user owns this post before deleting
           if (post && canEditDelete && String(post.userId) === String(user?.id)) {
             return post?.delete() || Promise.resolve();
           }
@@ -194,7 +194,6 @@ function UserDetails() {
     }
 
     try {
-      // Update user properties
       Object.assign(user, {
         name: editedUser.name,
         email: editedUser.email
@@ -257,14 +256,12 @@ function UserDetails() {
   }, [navigation]);
 
   const handleEditPost = useCallback((post: Post) => {
-    // Only allow editing if user owns this post
     if (canEditDelete && String(post.userId) === String(user?.id)) {
       navigation.navigateToPost(String(post.id), true);
     }
   }, [navigation, canEditDelete, user]);
 
   const handleDeletePost = useCallback((post: Post) => {
-    // Only allow deleting if user owns this post
     if (canEditDelete && String(post.userId) === String(user?.id)) {
       tableOps.setRowSelection({ [String(post.id)]: true });
       bulkDeleteConfirmation.openDialog();
@@ -403,48 +400,54 @@ function UserDetails() {
     return <LoadingState message="Caricamento dettagli utente..." />;
   }
 
-  return (
-      <div className="p-8 h-full overflow-auto">
-        <div className="mb-6">
-          <button
-              onClick={navigation.navigateBack}
-              className="flex items-center gap-2 text-gray-600 hover:text-gray-800"
-          >
-            <ArrowBackIcon /> Torna indietro
-          </button>
-        </div>
+  // Render title content
+  const renderTitle = () => {
+    if (isEditing) {
+      return (
+          <div className="space-y-4">
+            <TextField
+                fullWidth
+                value={editedUser.name}
+                onChange={(e) => setEditedUser({ ...editedUser, name: e.target.value })}
+                label="Nome"
+                error={validationErrors.some(err => err.includes('Nome'))}
+                helperText={validationErrors.find(err => err.includes('Nome'))}
+            />
+            <TextField
+                fullWidth
+                value={editedUser.email}
+                onChange={(e) => setEditedUser({ ...editedUser, email: e.target.value })}
+                label="Email"
+                error={validationErrors.some(err => err.includes('Email'))}
+                helperText={validationErrors.find(err => err.includes('Email'))}
+            />
+          </div>
+      );
+    }
 
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-          <div className="p-6 border-b flex justify-between items-center" onDoubleClick={handleDoubleClick}>
-            <div className="flex-1">
-              {isEditing ? (
-                  <div className="space-y-4">
-                    <TextField
-                        fullWidth
-                        value={editedUser.name}
-                        onChange={(e) => setEditedUser({ ...editedUser, name: e.target.value })}
-                        label="Nome"
-                        error={validationErrors.some(err => err.includes('Nome'))}
-                        helperText={validationErrors.find(err => err.includes('Nome'))}
-                    />
-                    <TextField
-                        fullWidth
-                        value={editedUser.email}
-                        onChange={(e) => setEditedUser({ ...editedUser, email: e.target.value })}
-                        label="Email"
-                        error={validationErrors.some(err => err.includes('Email'))}
-                        helperText={validationErrors.find(err => err.includes('Email'))}
-                    />
-                  </div>
-              ) : (
-                  <div>
-                    <h1 className="text-3xl font-bold">{user.name}</h1>
-                    <p className="text-gray-600">{user.email}</p>
-                    <p className="text-sm text-gray-500 mt-2">{userPosts.length} post totali</p>
-                  </div>
-              )}
-            </div>
-            <div className="ml-4">
+    return (
+        <div>
+          <h1 className="text-4xl font-bold text-gray-800 mb-2">{user.name}</h1>
+          <p className="text-lg text-gray-600">{user.email}</p>
+        </div>
+    );
+  };
+
+  // Render subtitle (post count)
+  const renderSubtitle = () => (
+      <div className="flex items-center gap-4 text-gray-600">
+        <span className="text-sm text-gray-500">{userPosts.length} post totali</span>
+      </div>
+  );
+
+  return (
+      <>
+        <DetailPageLayout
+            onBack={() => navigation.navigateBack()}
+            backText="Torna indietro"
+            title={renderTitle()}
+            subtitle={renderSubtitle()}
+            headerActions={
               <HeaderActions
                   isEditing={isEditing}
                   onEdit={handleEditStart}
@@ -455,49 +458,58 @@ function UserDetails() {
                   disableEdit={!canEditDelete}
                   disableSave={validationErrors.length > 0}
                   showDelete={canEditDelete}
+                  showEdit={canEditDelete}
               />
-            </div>
+            }
+            isEditing={isEditing}
+            showEditHint={!isEditing && canEditDelete}
+            onDoubleClick={handleDoubleClick}
+            useNavigationStore={true}
+            contentClassName="p-0" // Remove padding from content area
+        >
+          {/* Content Table */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+            <ContentTable<Post>
+                columns={columns}
+                data={tableData.posts ?? []}
+                rowCount={tableData.totalCount ?? 0}
+                pagination={tableOps.pagination}
+                onPaginationChange={tableOps.setPagination}
+                isLoading={false}
+                isFetching={false}
+                rowSelection={tableOps.rowSelection}
+                onRowSelectionChange={tableOps.setRowSelection}
+                getRowId={(row) => String(row.id)}
+                enableRowSelection={true}
+                enableRowActions={canEditDelete}
+                onEdit={handleEditPost}
+                onDelete={handleDeletePost}
+                onView={handleViewPost}
+                detailPanel={detailPanel}
+                muiTableBodyRowProps={getRowProps}
+                title={`Post di ${user.name}`}
+                selectedCount={tableOps.selectedCount}
+                renderTopToolbarCustomActions={renderTopToolbarCustomActions}
+                globalFilter={tableOps.globalFilter}
+                onGlobalFilterChange={tableOps.setGlobalFilter}
+                showGlobalFilter={tableOps.showGlobalFilter}
+                onShowGlobalFilterChange={tableOps.setShowGlobalFilter}
+                sorting={tableOps.sorting}
+                onSortingChange={tableOps.setSorting}
+                columnOrder={tableOps.columnOrder}
+                onColumnOrderChange={tableOps.setColumnOrder}
+                columnVisibility={tableOps.columnVisibility}
+                onColumnVisibilityChange={tableOps.setColumnVisibility}
+                columnPinning={tableOps.columnPinning}
+                onColumnPinningChange={tableOps.setColumnPinning}
+                scrollPosition={tableOps.scrollPosition}
+                onScrollPositionChange={tableOps.setScrollPosition}
+                tableKey="user-details-posts"
+            />
           </div>
+        </DetailPageLayout>
 
-          <ContentTable<Post>
-              columns={columns}
-              data={tableData.posts ?? []}
-              rowCount={tableData.totalCount ?? 0}
-              pagination={tableOps.pagination}
-              onPaginationChange={tableOps.setPagination}
-              isLoading={false}
-              isFetching={false}
-              rowSelection={tableOps.rowSelection}
-              onRowSelectionChange={tableOps.setRowSelection}
-              getRowId={(row) => String(row.id)}
-              enableRowSelection={true}
-              enableRowActions={canEditDelete}
-              onEdit={handleEditPost}
-              onDelete={handleDeletePost}
-              onView={handleViewPost}
-              detailPanel={detailPanel}
-              muiTableBodyRowProps={getRowProps}
-              title={`Post di ${user.name}`}
-              selectedCount={tableOps.selectedCount}
-              renderTopToolbarCustomActions={renderTopToolbarCustomActions}
-              globalFilter={tableOps.globalFilter}
-              onGlobalFilterChange={tableOps.setGlobalFilter}
-              showGlobalFilter={tableOps.showGlobalFilter}
-              onShowGlobalFilterChange={tableOps.setShowGlobalFilter}
-              sorting={tableOps.sorting}
-              onSortingChange={tableOps.setSorting}
-              columnOrder={tableOps.columnOrder}
-              onColumnOrderChange={tableOps.setColumnOrder}
-              columnVisibility={tableOps.columnVisibility}
-              onColumnVisibilityChange={tableOps.setColumnVisibility}
-              columnPinning={tableOps.columnPinning}
-              onColumnPinningChange={tableOps.setColumnPinning}
-              scrollPosition={tableOps.scrollPosition}
-              onScrollPositionChange={tableOps.setScrollPosition}
-              tableKey="user-details-posts"
-          />
-        </div>
-
+        {/* Dialogs */}
         <ConfirmationDialog
             open={userDeleteConfirmation.isOpen}
             title={userDeleteConfirmation.dialogConfig.title}
@@ -505,7 +517,7 @@ function UserDetails() {
             onConfirm={userDeleteConfirmation.handleConfirm}
             onCancel={() => {
               userDeleteConfirmation.closeDialog();
-              setIsDeleting(false); // Reset deleting flag if cancelled
+              setIsDeleting(false);
             }}
             confirmText="Elimina Utente"
             severity="error"
@@ -532,7 +544,7 @@ function UserDetails() {
             {snackbar.message}
           </Alert>
         </Snackbar>
-      </div>
+      </>
   );
 }
 

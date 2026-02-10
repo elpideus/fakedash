@@ -157,7 +157,7 @@ function PostDetails() {
                 details={`Post ID: ${postId}`}
                 showBackButton={true}
                 onBack={() => navigateBack()}
-                backText={backTarget === '/' ? 'Torna alla lista' : 'Torna indietro'}
+                backText='Torna indietro'
             />
         );
     }
@@ -169,7 +169,7 @@ function PostDetails() {
                 message={`Il post con ID "${postId}" non esiste.`}
                 showBackButton={true}
                 onBack={() => navigateBack()}
-                backText={backTarget === '/' ? 'Torna alla lista' : 'Torna indietro'}
+                backText='Torna indietro'
             />
         );
     }
@@ -263,7 +263,7 @@ function PostDetails() {
         <>
             <DetailPageLayout
                 onBack={navigateBack}
-                backText={backTarget === '/' ? 'Torna alla lista' : 'Torna indietro'}
+                backText='Torna indietro'
                 title={renderTitle()}
                 subtitle={renderAuthorSection()}
                 headerActions={
@@ -277,6 +277,7 @@ function PostDetails() {
                         disableEdit={!canEditDelete || deleteConfirmation.isDeleting}
                         disableSave={!editedPost?.title?.trim() || !editedPost?.content?.trim()}
                         showDelete={canEditDelete}
+                        showEdit={canEditDelete}
                     />
                 }
                 isEditing={isEditing}

@@ -2,32 +2,56 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 
+/**
+ * Props for the DetailPageLayout component.
+ */
 interface DetailPageLayoutProps {
     // Navigation
+    /** URL to navigate back to (used if onBack is not provided) */
     backUrl?: string;
+    /** Text displayed next to the back arrow */
     backText?: string;
+    /** Custom back navigation handler */
     onBack?: () => void;
-    useNavigationStore?: boolean;
 
     // Header
+    /** Main page title */
     title?: React.ReactNode;
+    /** Optional subtitle shown below the title */
     subtitle?: React.ReactNode;
+    /** Optional actions rendered in the header (e.g. buttons, menus) */
     headerActions?: React.ReactNode;
-
     // Content
+
+    /** Main page content */
     children: React.ReactNode;
 
     // States
+    /** Shows a loading spinner instead of the page content */
     isLoading?: boolean;
+    /** Whether the page is currently in edit mode */
     isEditing?: boolean;
+    /** Shows a hint suggesting double-click to edit */
     showEditHint?: boolean;
+    /** Callback triggered on double-click of the content area */
     onDoubleClick?: () => void;
 
     // Styling
+    /** Extra classes applied to the outer container */
     className?: string;
+    /** Extra classes applied to the content card */
     contentClassName?: string;
 }
 
+/**
+ * Layout component for detail pages.
+ *
+ * Provides:
+ * - Optional back navigation
+ * - Page header with title, subtitle and actions
+ * - Loading state
+ * - Editable content hint
+ */
 const DetailPageLayout: React.FC<DetailPageLayoutProps> = ({
                                                                backUrl,
                                                                backText,
@@ -43,6 +67,10 @@ const DetailPageLayout: React.FC<DetailPageLayoutProps> = ({
                                                                className = '',
                                                                contentClassName = ''
                                                            }) => {
+
+    /**
+     * Renders a full-page loading state.
+     */
     if (isLoading) {
         return (
             <div className="p-8 h-full flex items-center justify-center">
@@ -54,7 +82,13 @@ const DetailPageLayout: React.FC<DetailPageLayoutProps> = ({
         );
     }
 
-    // Render back button with either Link or onClick handler
+    /**
+     * Renders the back button.
+     * Priority:
+     * 1. onBack handler
+     * 2. backUrl link
+     * 3. Disabled fallback
+     */
     const renderBackButton = () => {
         const backButtonContent = (
             <div className="group inline-flex items-center gap-2 text-gray-600 hover:text-gray-800 transition-all duration-200 cursor-pointer">
@@ -100,7 +134,7 @@ const DetailPageLayout: React.FC<DetailPageLayoutProps> = ({
 
     return (
         <div className={`p-8 h-full overflow-auto ${className}`}>
-            {/* Back button */}
+            {/* Navigation + header actions */}
             <div className="flex justify-between items-center mb-6">
                 {renderBackButton()}
 
@@ -111,35 +145,32 @@ const DetailPageLayout: React.FC<DetailPageLayoutProps> = ({
                 )}
             </div>
 
-            {/* Content */}
+            {/* Main content container */}
             <article
                 className={`bg-white rounded-2xl p-8 shadow-sm border border-gray-200 ${contentClassName}`}
                 onDoubleClick={onDoubleClick}
             >
-                {/* Header - Only show when we have a title or subtitle */}
+                {/* Header */}
                 {(title || subtitle) && (
                     <header className="mb-8">
                         {title && (
-                            typeof title === 'string' ? (
-                                <h1 className="text-4xl font-bold text-gray-800 mb-4">{title}</h1>
-                            ) : (
-                                <div className="mb-4">{title}</div>
-                            )
+                            typeof title === 'string'
+                                ? <h1 className="text-4xl font-bold text-gray-800 mb-4">{title}</h1>
+                                : <div className="mb-4">{title}</div>
                         )}
 
                         {subtitle && (
                             <div className="flex items-center gap-4 text-gray-600">
-                                {typeof subtitle === 'string' ? (
-                                    <p className="text-lg">{subtitle}</p>
-                                ) : (
-                                    subtitle
-                                )}
+                                {typeof subtitle === 'string'
+                                    ? <p className="text-lg">{subtitle}</p>
+                                    : subtitle
+                                }
                             </div>
                         )}
                     </header>
                 )}
 
-                {/* Main content */}
+                {/* Page body */}
                 <div className="prose max-w-none">
                     {children}
                 </div>

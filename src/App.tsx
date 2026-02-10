@@ -15,7 +15,13 @@ function App() {
                     </ProtectedRoute>
                 }
             />
-            <Route path="/" element={<Navigate to="/posts" replace />} />
+            <Route path="/"
+                   element={
+                        <ProtectedRoute>
+                            <PostsPage />
+                        </ProtectedRoute>
+                   }
+            />
         </Routes>
     );
 }
